@@ -1,0 +1,5 @@
+# O workflow roda em Linux: manter LF evita erro de \r no script do Actions.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.mp4 binary

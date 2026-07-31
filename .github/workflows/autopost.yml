@@ -1,0 +1,63 @@
+name: Postador Facebook
+
+on:
+  schedule:
+    # 06:00 UTC = 03:00 em Brasilia. O robo sobe os videos do dia de madrugada
+    # e o proprio Facebook publica nos horarios exatos do config.yaml.
+    - cron: "0 6 * * *"
+    # Rede de seguranca: se o run da madrugada falhar, este pega o que ficou.
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Simular sem publicar"
+        type: boolean
+        default: false
+
+# Nunca dois runs ao mesmo tempo: evita post duplicado e conflito no state.
+concurrency:
+  group: autopost
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Garantir ffmpeg
+        run: ffprobe -version >/dev/null 2>&1 || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+
+      - name: Instalar dependencias
+        run: pip install -q -r requirements.txt
+
+      - name: Publicar
+        env:
+          ALL_SECRETS: ${{ toJSON(secrets) }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+        run: python -m src.main
+
+      - name: Salvar o que foi postado
+        if: always()
+        run: |
+          git config user.name  "autoposter"
+          git config user.email "autoposter@users.noreply.github.com"
+          git add state/posted.json
+          git diff --cached --quiet && echo "sem mudancas no state" && exit 0
+          git commit -m "state: posts de $(date -u +%Y-%m-%d)"
+          for i in 1 2 3; do
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && git push && exit 0
+            echo "push falhou, tentativa $i"
+            sleep 5
+          done
+          exit 1

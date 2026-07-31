@@ -1,0 +1,64 @@
+# ============================================================
+#  POSTADOR AUTOMATICO - CONFIG
+#  Nenhum token aqui. Segredos ficam em GitHub Secrets.
+# ============================================================
+
+# Fuso padrao, usado por paginas que nao definirem o proprio.
+timezone: America/Sao_Paulo
+
+# schedule = sobe o video e o FACEBOOK publica na hora exata (recomendado)
+# now      = publica no momento em que o workflow rodar
+mode: schedule
+
+# Quantas horas para frente o robo agenda de uma vez
+schedule_horizon_hours: 30
+
+# Tolerancia (minutos) do mode: now, caso o cron atrase
+now_tolerance_minutes: 45
+
+# Quando a pasta acabar: true = recomeca do inicio, false = para e avisa
+recycle_when_empty: false
+
+# Pula videos fora do padrao de Reels em vez de queimar o horario
+validate_media: true
+
+pages:
+  - name: "Daily Blessings"
+    page_id_env: PAGE1_ID          # secret com o ID da Pagina
+    token_env: PAGE1_TOKEN         # secret com o Page Access Token
+    timezone: America/New_York     # os horarios abaixo sao no fuso DESTA pagina
+
+    source:
+      type: onedrive
+      env: PAGE1_SOURCE            # secret com o link publico da pasta
+
+    post_type: reel
+    times:
+      - "09:00"
+      - "13:00"
+      - "19:30"
+
+    order: name                    # name | created | random_stable
+    default_caption: "Watch till the end"
+    hashtags: "#faith #blessings #god"
+
+  # ---------------------------------------------------------------
+  # Cada pagina tem o proprio fuso: "19:00" de uma pagina do Mexico e
+  # 19:00 no Mexico, nao no Brasil. Duplique o bloco e ajuste.
+  #
+  # Fusos uteis: America/Sao_Paulo (BR), America/New_York (EUA leste),
+  # America/Los_Angeles (EUA oeste), America/Mexico_City (MX),
+  # Europe/Paris (FR), Europe/Lisbon (PT)
+  # ---------------------------------------------------------------
+  # - name: "Bencaos Diarias"
+  #   page_id_env: PAGE2_ID
+  #   token_env: PAGE2_TOKEN
+  #   timezone: America/Sao_Paulo
+  #   source:
+  #     type: onedrive
+  #     env: PAGE2_SOURCE
+  #   post_type: reel
+  #   times: ["08:00", "12:30", "20:00"]
+  #   order: name
+  #   default_caption: "Assista ate o final"
+  #   hashtags: "#fe #deus"
