@@ -45,13 +45,45 @@ gh repo create fb-autoposter --private --source=. --push
 5. Copie o e-mail da conta de serviço (algo como `robo@projeto.iam.gserviceaccount.com`).
 6. No Google Drive, **compartilhe a pasta dos vídeos** com esse e-mail como **Leitor**.
 
-### 3. Acesso ao OneDrive (opcional)
+### 3. Acesso ao OneDrive
 
-Só precisa do link: botão direito na pasta → **Compartilhar** → mudar para
-**"Qualquer pessoa com o link"** → copiar. Sem cadastro de app.
+A Microsoft cortou o acesso anônimo a links de compartilhamento em contas
+migradas para o SharePoint Online — todas as rotas anônimas devolvem 401. Por
+isso o robô usa um app registrado.
 
-> Funciona com OneDrive pessoal. Conta corporativa/SharePoint bloqueia acesso
-> anônimo e exigiria registrar um app na Microsoft.
+**a) Registrar o app** em <https://portal.azure.com> → **Registros de aplicativo**
+→ **Novo registro**:
+
+- Nome: qualquer um (ex: "Postador OneDrive")
+- Tipos de conta: **Contas pessoais da Microsoft e contas em qualquer diretório organizacional**
+- Redirecionamento: deixe vazio
+- Criar → copie o **ID do aplicativo (cliente)**
+
+**b) Liberar o fluxo de dispositivo:** no app criado → **Autenticação** → role até
+**Configurações avançadas** → **Permitir fluxos de cliente público: Sim** → Salvar.
+
+**c) Permissões:** → **Permissões de API** → **Adicionar** → **Microsoft Graph** →
+**Permissões delegadas** → marque `Files.Read.All` e `offline_access` → Adicionar.
+
+**d) Gerar o refresh token** (uma vez só, na sua máquina):
+
+```powershell
+cd "c:\Users\pedro\Projetos pedro\fb-autoposter"
+.\.venv\Scripts\python.exe -m tools.onedrive_login
+```
+
+Ele mostra um código, você autoriza no navegador e ele devolve o
+`ONEDRIVE_REFRESH_TOKEN` para cadastrar nos Secrets.
+
+**e) Indicar a pasta** no secret `PAGE1_SOURCE`, de um dos dois jeitos:
+- o link de compartilhamento da pasta, ou
+- o caminho dentro do seu OneDrive, ex: `/Videos/Daily Blessings`
+
+> **Renovação automática:** a Microsoft devolve um refresh token novo a cada
+> execução, e o original morre em ~90 dias. Se você cadastrar um secret `GH_PAT`
+> (token do GitHub com permissão de escrita em Secrets), o robô grava o token novo
+> sozinho e o acesso nunca expira. Sem o `GH_PAT` funciona igual, mas você precisa
+> rodar o `onedrive_login` de novo a cada ~90 dias — o log avisa.
 
 ### 4. Token da Página do Facebook
 
@@ -73,10 +105,13 @@ No repositório: **Settings → Secrets and variables → Actions → New reposi
 
 | Secret | Conteúdo |
 |---|---|
-| `GOOGLE_SERVICE_ACCOUNT_JSON` | conteúdo inteiro do arquivo JSON baixado no passo 2 |
 | `PAGE1_ID` | ID numérico da Página |
 | `PAGE1_TOKEN` | Page Access Token |
-| `PAGE1_SOURCE` | ID/link da pasta do Drive **ou** link do OneDrive |
+| `PAGE1_SOURCE` | link/caminho da pasta do OneDrive **ou** ID da pasta do Drive |
+| `ONEDRIVE_CLIENT_ID` | ID do aplicativo do Azure (só para OneDrive) |
+| `ONEDRIVE_REFRESH_TOKEN` | gerado pelo `tools.onedrive_login` (só para OneDrive) |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | JSON da conta de serviço (só para Google Drive) |
+| `GH_PAT` | opcional: renova o refresh token do OneDrive sozinho |
 
 ### 6. Ajustar o `config.yaml`
 

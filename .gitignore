@@ -1,5 +1,6 @@
 .env
 *.json.local
+*.local.txt
 service-account.json
 downloads/
 __pycache__/

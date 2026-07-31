@@ -13,7 +13,7 @@ sys.path.insert(0, __file__.rsplit("tools", 1)[0])
 from src import config, state  # noqa: E402
 from src.sources import base  # noqa: E402
 from src.sources.gdrive import folder_id_from  # noqa: E402
-from src.sources.onedrive import share_token  # noqa: E402
+from src.sources.onedrive import OneDriveSource, _share_id  # noqa: E402
 
 TZ = ZoneInfo("America/Sao_Paulo")
 falhas = []
@@ -100,9 +100,20 @@ print("\n[links]")
 check("extrai id de /folders/", folder_id_from("https://drive.google.com/drive/folders/1AbC_-9?usp=sharing") == "1AbC_-9")
 check("extrai id de ?id=", folder_id_from("https://drive.google.com/open?id=1XyZ") == "1XyZ")
 check("id puro passa direto", folder_id_from("1XyZ") == "1XyZ")
-tok = share_token("https://1drv.ms/f/s!AbC")
-check("token do onedrive comeca com u!", tok.startswith("u!"))
-check("token sem padding", not tok.endswith("="))
+tok = _share_id("https://1drv.ms/f/s!AbC")
+check("share id do onedrive comeca com u!", tok.startswith("u!"))
+check("share id sem padding", not tok.endswith("="))
+check("share id e base64url (sem + nem /)", "+" not in tok and "/" not in tok[2:])
+
+print("\n[onedrive: link x caminho]")
+por_link = OneDriveSource("https://1drv.ms/f/c/123/AbC")
+por_caminho = OneDriveSource("/Videos/Daily Blessings")
+check("link vira endpoint de shares", "/shares/u!" in por_link._base_url())
+check("caminho vira endpoint do proprio drive",
+      por_caminho._base_url().endswith("/me/drive/root:/Videos/Daily Blessings:"),
+      por_caminho._base_url())
+check("caminho tolera barra no inicio e no fim",
+      OneDriveSource("/Videos/")._base_url() == OneDriveSource("Videos")._base_url())
 
 print("\n[legendas]")
 item = base.Item(id="1", name="historia_da_vovo.mp4")
