@@ -23,7 +23,9 @@ validate_media: true            # pula video fora do padrao de Reels
 # Valores herdados por todas as paginas. Cada pagina pode sobrescrever.
 # ------------------------------------------------------------
 defaults:
-  post_type: reel               # reel | video
+  # Os videos das pastas sao verticais porem longos (2 a 6 min), acima do
+  # limite de 90s do Reels - por isso vao como video de feed.
+  post_type: video              # reel | video
   order: name                   # name | created | random_stable
   times:
     - "09:00"
@@ -37,10 +39,11 @@ defaults:
 pages:
   - name: "Daily Blessings"
     page_id: "102725309222801"
+    token_env: PAGE1_TOKEN       # enquanto o FB_USER_TOKEN nao esta cadastrado
     timezone: America/New_York
-    source: "onedrive:Videos/Daily Blessings"
+    source: "onedrive:PAGINAS FACEBOOK ( arquivo videos 00)/BAIXADOS DAS PAGINAS/REDE 1- IRÔNICA/R1 - Inglês"
     default_caption: "Watch till the end"
-    hashtags: "#faith #blessings #god"
+    hashtags: ""
 
   # ---- modelo para as proximas paginas ----
   # - name: "Bencaos Diarias"

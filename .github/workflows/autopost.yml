@@ -13,6 +13,10 @@ on:
         description: "Simular sem publicar"
         type: boolean
         default: false
+      teste_um_video:
+        description: "Publicar UM video agora (teste de ponta a ponta)"
+        type: boolean
+        default: false
 
 # Nunca dois runs ao mesmo tempo: evita post duplicado e conflito no state.
 concurrency:
@@ -53,7 +57,12 @@ jobs:
         env:
           ALL_SECRETS: ${{ toJSON(secrets) }}
           DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
-        run: python -m src.main
+        run: |
+          if [ "${{ inputs.teste_um_video }}" = "true" ]; then
+            python -m tools.testar_post
+          else
+            python -m src.main
+          fi
 
       - name: Salvar o que foi postado
         if: always()
