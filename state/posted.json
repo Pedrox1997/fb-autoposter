@@ -3,6 +3,30 @@
     "daily-blessings": {
       "rejected": {},
       "slots": {
+        "2026-08-01T09:00:00-04:00": {
+          "file": "Boss tests employee if he makes a surprise 😱❤️.mp4",
+          "file_id": "1E57445494229216#1E57445494229216!s2d0de08aa8644430abc9f33c2c400f10",
+          "post_id": "1051045207779469",
+          "scheduled_for": "2026-08-01T09:00:00-04:00"
+        },
+        "2026-08-01T13:00:00-04:00": {
+          "file": "Boss tests employees and gives a surprise 😱❤️.mp4",
+          "file_id": "1E57445494229216#1E57445494229216!s6f6ff423a78f40c4b8af53a1f92e7813",
+          "post_id": "1396856715665704",
+          "scheduled_for": "2026-08-01T13:00:00-04:00"
+        },
+        "2026-08-01T19:30:00-04:00": {
+          "file": "Boss tests his employees and gives them a big reward.mp4",
+          "file_id": "1E57445494229216#1E57445494229216!s68bcedc7018c470aa77854e974c91baa",
+          "post_id": "1020349750633212",
+          "scheduled_for": "2026-08-01T19:30:00-04:00"
+        },
+        "2026-08-02T09:00:00-04:00": {
+          "file": "Brave girl did this and saved her vid4.mp4",
+          "file_id": "1E57445494229216#1E57445494229216!s26dc1e7898624925bf69a825ab268bb7",
+          "post_id": "934724605654836",
+          "scheduled_for": "2026-08-02T09:00:00-04:00"
+        },
         "teste-20260801T020803": {
           "file": "My mother in law made my life impossible because she can't cook and made her son choose between her and me.mp4",
           "file_id": "1E57445494229216#1E57445494229216!s81d1c92faeaf4acb9782a126325e8a42",
@@ -25,7 +49,11 @@
       "used_files": [
         "1E57445494229216#1E57445494229216!s81d1c92faeaf4acb9782a126325e8a42",
         "1E57445494229216#1E57445494229216!s252e0acbe9d841ada8962934d7c99a88",
-        "1E57445494229216#1E57445494229216!s779792ec024548fc9bf3fe9ceb27405d"
+        "1E57445494229216#1E57445494229216!s779792ec024548fc9bf3fe9ceb27405d",
+        "1E57445494229216#1E57445494229216!s2d0de08aa8644430abc9f33c2c400f10",
+        "1E57445494229216#1E57445494229216!s6f6ff423a78f40c4b8af53a1f92e7813",
+        "1E57445494229216#1E57445494229216!s68bcedc7018c470aa77854e974c91baa",
+        "1E57445494229216#1E57445494229216!s26dc1e7898624925bf69a825ab268bb7"
       ]
     }
   }
