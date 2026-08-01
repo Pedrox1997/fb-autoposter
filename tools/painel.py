@@ -61,6 +61,20 @@ def salvar_token(valor):
     with open(ENV_LOCAL, "w", encoding="utf-8") as f:
         f.write("\n".join(linhas) + "\n")
     os.environ["FB_USER_TOKEN"] = valor
+    facebook._tokens_cache.pop("map", None)
+    return _mandar_secret("FB_USER_TOKEN", valor)
+
+
+def _mandar_secret(nome, valor):
+    """Cadastra o mesmo valor como GitHub Secret, para o robo tambem ter acesso."""
+    try:
+        proc = subprocess.run(["gh", "secret", "set", nome], cwd=RAIZ, input=valor,
+                              capture_output=True, text=True, timeout=120)
+        if proc.returncode == 0:
+            return {"github": "ok"}
+        return {"github": "falhou", "detalhe": (proc.stderr or "")[-200:]}
+    except Exception as e:
+        return {"github": "falhou", "detalhe": str(e)[:200]}
 
 
 def listar_paginas():
@@ -206,8 +220,8 @@ class Painel(BaseHTTPRequestHandler):
         rota = urlparse(self.path).path
         try:
             if rota == "/api/token":
-                salvar_token(dados.get("token", "").strip())
-                return self._responder({"ok": True})
+                resultado = salvar_token(dados.get("token", "").strip())
+                return self._responder({"ok": True, **resultado})
             if rota == "/api/salvar":
                 return self._responder(escrever_config(dados))
             if rota == "/api/publicar":
