@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Política de Privacidade — Postador Pedro</title>
+<style>
+  body{max-width:760px;margin:0 auto;padding:40px 22px 80px;
+       font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1a1d21}
+  h1{font-size:26px;margin-bottom:4px}
+  .data{color:#6b7280;font-size:14px;margin-bottom:32px}
+  h2{font-size:18px;margin-top:32px}
+  ul{padding-left:20px} li{margin:6px 0}
+  code{background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:14px}
+  footer{margin-top:48px;padding-top:18px;border-top:1px solid #e5e7eb;
+         color:#6b7280;font-size:14px}
+  @media (prefers-color-scheme: dark){
+    body{background:#111418;color:#e8eaed} code{background:#22262e}
+    footer{border-color:#2a2f38}
+  }
+</style>
+</head>
+<body>
+
+<h1>Política de Privacidade</h1>
+<p class="data">Aplicativo: <b>Postador Pedro</b> · Atualizada em 1 de agosto de 2026</p>
+
+<p>Este aplicativo é uma ferramenta de uso pessoal, criada para publicar vídeos
+automaticamente em Páginas do Facebook administradas pelo próprio autor. Ele não
+é oferecido a terceiros e não possui base de usuários.</p>
+
+<h2>Quais dados são usados</h2>
+<ul>
+  <li><b>Token de acesso</b> do administrador das Páginas, obtido pelo Login do Facebook,
+      usado apenas para publicar conteúdo nas Páginas autorizadas.</li>
+  <li><b>Identificador e nome</b> das Páginas administradas, para saber onde publicar.</li>
+  <li><b>Arquivos de vídeo</b> guardados em armazenamento em nuvem particular do autor,
+      enviados às Páginas no momento da publicação.</li>
+</ul>
+
+<h2>O que não é coletado</h2>
+<ul>
+  <li>Dados de seguidores, mensagens, comentários ou qualquer informação de terceiros.</li>
+  <li>Dados de outros usuários do Facebook.</li>
+  <li>Informações de pagamento ou dados sensíveis.</li>
+</ul>
+
+<h2>Onde as informações ficam</h2>
+<p>Os tokens são guardados criptografados como <i>secrets</i> do repositório no GitHub
+e como variáveis de ambiente locais. Não são compartilhados, vendidos ou transmitidos
+a terceiros. O registro do que foi publicado guarda apenas nome de arquivo, horário e
+identificador do post.</p>
+
+<h2>Retenção e exclusão</h2>
+<p>Os dados existem apenas enquanto o aplicativo é usado. Para revogar o acesso a
+qualquer momento, remova o aplicativo em
+<code>Facebook → Configurações → Aplicativos e sites</code>; os tokens deixam de
+funcionar imediatamente. Para solicitar exclusão de dados, use o contato abaixo.</p>
+
+<h2>Serviços utilizados</h2>
+<ul>
+  <li><b>API Graph do Facebook</b> — publicação nas Páginas.</li>
+  <li><b>GitHub Actions</b> — execução automática nos horários definidos.</li>
+  <li><b>Microsoft OneDrive</b> — origem dos arquivos de vídeo.</li>
+</ul>
+
+<h2>Contato</h2>
+<p>Dúvidas ou pedidos relacionados a esta política: <b>pedro.da.nike@hotmail.com</b></p>
+
+<footer>
+  Código-fonte disponível em
+  <a href="https://github.com/Pedrox1997/fb-autoposter">github.com/Pedrox1997/fb-autoposter</a>.
+</footer>
+
+</body>
+</html>
