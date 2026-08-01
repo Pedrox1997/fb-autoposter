@@ -1,69 +1,57 @@
 # ============================================================
 #  POSTADOR AUTOMATICO - CONFIG
-#  Nenhum token aqui. Segredos ficam em GitHub Secrets.
+#  Este arquivo tambem e escrito pelo painel (python -m tools.painel).
+#  Nenhum token aqui: segredos ficam em GitHub Secrets.
 # ============================================================
 
-# Fuso padrao, usado por paginas que nao definirem o proprio.
 timezone: America/Sao_Paulo
 
 # Tokens de USUARIO de longa duracao: com eles o robo descobre sozinho o token
-# de cada Pagina, entao nao existe um secret por pagina.
-# Sem esta chave, o robo usa automaticamente toda variavel FB_USER_TOKEN,
+# de cada Pagina. Sem esta chave, usa toda variavel FB_USER_TOKEN,
 # FB_USER_TOKEN_2, FB_USER_TOKEN_3... que existir - um perfil por token.
 # facebook_user_token_env: [FB_USER_TOKEN, FB_USER_TOKEN_2]
 
-# schedule = sobe o video e o FACEBOOK publica na hora exata (recomendado)
-# now      = publica no momento em que o workflow rodar
-mode: schedule
-
+mode: schedule                  # schedule = o Facebook publica na hora exata
 schedule_horizon_hours: 30      # quanto tempo para frente o robo agenda
 now_tolerance_minutes: 45       # tolerancia do mode: now, se o cron atrasar
 recycle_when_empty: false       # true = recomeca a pasta quando acabar
-validate_media: true            # pula video fora do padrao de Reels
+validate_media: true            # pula video fora do padrao do formato
 
-# ------------------------------------------------------------
-# Valores herdados por todas as paginas. Cada pagina pode sobrescrever.
-# ------------------------------------------------------------
 defaults:
-  # Os videos das pastas sao verticais porem longos (2 a 6 min), acima do
-  # limite de 90s do Reels - por isso vao como video de feed.
-  post_type: video              # reel | video
   order: name                   # name | created | random_stable
-  times:
-    - "09:00"
-    - "13:00"
-    - "19:30"
+  post_type: video              # video (qualquer duracao) | reel (ate 90s)
 
 # ------------------------------------------------------------
-# Uma entrada por Pagina. page_id e source NAO sao segredos - podem ficar
-# aqui mesmo. So o token e sigiloso, e ele vem do FB_USER_TOKEN.
+#  ETIQUETAS
+#  Cada etiqueta junta as paginas de um idioma e aponta uma pasta.
+#  As paginas da etiqueta DIVIDEM os videos: no mesmo horario cada uma leva
+#  um arquivo diferente, e um video nunca se repete na mesma pagina - ele
+#  apenas circula entre as paginas irmas.
 # ------------------------------------------------------------
-pages:
-  - name: "Daily Blessings"
-    page_id: "102725309222801"
-    token_env: PAGE1_TOKEN       # enquanto o FB_USER_TOKEN nao esta cadastrado
-    timezone: America/New_York
+grupos:
+  - nome: "Ingles"
     source: "onedrive:PAGINAS FACEBOOK ( arquivo videos 00)/BAIXADOS DAS PAGINAS/REDE 1- IRÔNICA/R1 - Inglês"
-    # sem default_caption: a legenda vira o proprio nome do arquivo,
-    # que ja e o gancho do video
-    hashtags: ""
+    timezone: America/New_York
+    post_type: video
+    times:
+      - "09:00"
+      - "13:00"
+      - "19:30"
+    paginas:
+      - name: "Daily Blessings"
+        page_id: "102725309222801"
+        token_env: PAGE1_TOKEN     # enquanto o FB_USER_TOKEN nao esta cadastrado
 
-  # ---- modelo para as proximas paginas ----
-  # - name: "Bencaos Diarias"
-  #   page_id: "1234567890"
+  # ---- modelo para as proximas etiquetas ----
+  # - nome: "Portugues"
+  #   source: "onedrive:.../REDE 1- IRÔNICA/BRASIL"
   #   timezone: America/Sao_Paulo
-  #   source: "onedrive:Videos/Bencaos"
-  #   times: ["08:00", "12:30", "20:00"]     # sobrescreve o padrao
-  #   default_caption: "Assista ate o final"
+  #   times: ["08:00", "12:30", "20:00"]
   #   hashtags: "#fe #deus"
-  #
-  # - name: "Bendiciones"
-  #   page_id: "0987654321"
-  #   timezone: America/Mexico_City
-  #   source: "onedrive:Videos/Bendiciones"
-  #   default_caption: "Mira hasta el final"
-  #   hashtags: "#fe #dios"
+  #   paginas:
+  #     - {name: "Pagina BR 1", page_id: "111"}
+  #     - {name: "Pagina BR 2", page_id: "222"}
 
 # Fusos uteis: America/Sao_Paulo (BR), America/New_York (EUA leste),
 # America/Los_Angeles (EUA oeste), America/Mexico_City (MX),
-# Europe/Paris (FR), Europe/Lisbon (PT)
+# Europe/Madrid (ES), Europe/Paris (FR), Europe/Rome (IT), Europe/Berlin (DE)

@@ -466,13 +466,19 @@ def escrever_config(dados):
     atual = ler_config()
     atual["timezone"] = dados.get("timezone", atual.get("timezone", "America/Sao_Paulo"))
     atual["defaults"] = dados.get("defaults", atual.get("defaults", {}))
+    atual["grupos"] = dados.get("grupos", [])
     atual["pages"] = dados.get("pages", [])
+    if not atual["pages"]:
+        atual.pop("pages", None)
+
+    total = sum(len(g.get("paginas", [])) for g in atual["grupos"]) + len(atual.get("pages", []))
 
     with open(CONFIG_YAML, "w", encoding="utf-8") as f:
         f.write("# Gerado pelo painel (python -m tools.painel).\n"
-                "# Pode editar na mao: o painel le o que estiver aqui.\n\n")
+                "# Cada 'grupo' e uma etiqueta: as paginas dela dividem a mesma pasta,\n"
+                "# sem que o mesmo video se repita numa pagina.\n\n")
         yaml.safe_dump(atual, f, allow_unicode=True, sort_keys=False, width=120)
-    return {"ok": True, "paginas": len(atual["pages"])}
+    return {"ok": True, "paginas": total, "etiquetas": len(atual["grupos"])}
 
 
 def git(*args, timeout=180):

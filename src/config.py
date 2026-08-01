@@ -25,6 +25,7 @@ class Page:
     default_caption: str = ""
     hashtags: str = ""
     order: str = "name"
+    grupo: str = ""              # etiqueta: paginas do mesmo grupo dividem a pasta
 
     @property
     def slug(self):
@@ -144,7 +145,18 @@ def load(path=None):
     # 'defaults' evita repetir horarios, hashtags e tipo de post em cada pagina
     padroes = raw.get("defaults", {}) or {}
 
-    for p in raw.get("pages", []):
+    # 'grupos' (etiquetas) sao acucar: um grupo com pasta, fuso e horarios
+    # comuns vira uma pagina por membro, todas marcadas com o nome do grupo.
+    # E o grupo que faz as paginas dividirem a mesma pasta sem repetir video.
+    entradas = list(raw.get("pages", []))
+    for grupo in raw.get("grupos", []) or []:
+        comuns = {k: v for k, v in grupo.items() if k not in ("nome", "paginas")}
+        for membro in grupo.get("paginas", []) or []:
+            if isinstance(membro, str):
+                membro = {"page_id": membro, "name": membro}
+            entradas.append({**comuns, **membro, "grupo": grupo.get("nome", "")})
+
+    for p in entradas:
         p = {**padroes, **p}
         name = p["name"]
 
@@ -196,6 +208,7 @@ def load(path=None):
                 default_caption=(p.get("default_caption") or "").strip(),
                 hashtags=(p.get("hashtags") or "").strip(),
                 order=p.get("order", "name"),
+                grupo=(p.get("grupo") or "").strip(),
             )
         )
 

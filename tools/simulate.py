@@ -164,6 +164,65 @@ check("parou depois de 3 falhas", len([p for p in probs7c if "->" in p]) == 3,
       str(len(probs7c)))
 check("acionou o disjuntor", any("abortando" in p for p in probs7c), str(probs7c))
 
+print("\n[caso 9] etiqueta: 3 paginas dividindo a mesma pasta")
+from src.sources.base import Item as _Item  # noqa: E402
+
+def pagina_do_grupo(nome, grupo="Ingles"):
+    return config.Page(name=nome, page_id="1", token="t", source_type="fake", source_ref="x",
+                       tz=TZ, post_type="video", times=[dtime(9, 0), dtime(13, 0)],
+                       default_caption="", hashtags="", order="name", grupo=grupo)
+
+videos_grupo = [_Item(id=f"v{i}", name=f"{i:02d}.mp4", size=1000) for i in range(1, 10)]
+st_grupo = {"pages": {}}
+cfg_grupo = config.Config(tz=TZ, mode="schedule", horizon_hours=30, tolerance_minutes=45,
+                          recycle=False, validate_media=False, pages=[])
+fonte = FakeSource([v.name for v in videos_grupo])
+fb_grupo = FakeFacebook()
+sources.get = lambda page: fonte
+facebook.publish = fb_grupo
+media.check = lambda path, tipo: ([], [])
+
+reservados, slugs = set(), []
+paginas_grupo = [pagina_do_grupo(n) for n in ("Pagina A", "Pagina B", "Pagina C")]
+slugs = [p.slug for p in paginas_grupo]
+escolhidos = {}
+for pg in paginas_grupo:
+    antes = len(fb_grupo.publicados)
+    main.process_page(cfg_grupo, st_grupo, pg, AGORA, videos=fonte.list_videos(),
+                      src=fonte, grupo_slugs=slugs, reservados=reservados)
+    escolhidos[pg.name] = [n for n, _ in fb_grupo.publicados[antes:]]
+
+todos = [v for lista in escolhidos.values() for v in lista]
+check("nenhum video repetido entre as paginas", len(todos) == len(set(todos)),
+      str(escolhidos))
+check("cada pagina recebeu videos", all(escolhidos.values()), str(escolhidos))
+check("paginas diferentes no mesmo horario levam arquivos diferentes",
+      escolhidos["Pagina A"][0] != escolhidos["Pagina B"][0] != escolhidos["Pagina C"][0],
+      str(escolhidos))
+
+print("\n[caso 10] rotacao: video ja usado na pagina nunca volta nela")
+# A pagina A ja publicou v1 e v2; eles nao podem reaparecer nela...
+st_rot = {"pages": {"pagina-a": {"used_files": ["v1", "v2"], "rejected": {}, "slots": {}},
+                    "pagina-b": {"used_files": ["v3"], "rejected": {}, "slots": {}}}}
+fila_a = main.montar_fila(videos_grupo, paginas_grupo[0], st_rot,
+                          ["pagina-a", "pagina-b"], set())
+ids_a = [v.id for v in fila_a]
+check("video ja publicado nao volta para a mesma pagina",
+      "v1" not in ids_a and "v2" not in ids_a, str(ids_a[:5]))
+check("video usado pela irma ainda pode vir, mas por ultimo",
+      ids_a.index("v3") > ids_a.index("v4"), str(ids_a[:5]))
+check("prefere o que nunca circulou", ids_a[0] == "v4", str(ids_a[:5]))
+
+fila_b = main.montar_fila(videos_grupo, paginas_grupo[1], st_rot,
+                          ["pagina-a", "pagina-b"], set())
+check("pagina B pode receber o que a A ja usou",
+      "v1" in [v.id for v in fila_b] and "v3" not in [v.id for v in fila_b],
+      str([v.id for v in fila_b][:5]))
+
+check("reserva impede duas paginas pegarem o mesmo agora",
+      main.montar_fila(videos_grupo, paginas_grupo[1], st_rot,
+                       ["pagina-a", "pagina-b"], {"v4"})[0].id != "v4")
+
 print("\n[caso 8] pasta vazia")
 posts8, probs8, fb8, _ = cenario([])
 check("nao publica nada", posts8 == 0)

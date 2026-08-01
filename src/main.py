@@ -15,6 +15,29 @@ def _fmt(dt):
     return dt.strftime("%d/%m %H:%M")
 
 
+def montar_fila(videos, page, st, grupo_slugs, reservados):
+    """Ordem em que os videos serao usados por esta pagina.
+
+    Duas regras, nesta ordem:
+      1. nunca repetir um video que ESTA pagina ja publicou;
+      2. entre os disponiveis, preferir os que menos circularam nas paginas
+         irmas - assim o mesmo video vai rodando de pagina em pagina em vez de
+         sair tres vezes seguidas no mesmo lugar.
+    'reservados' impede que duas paginas do grupo peguem o mesmo video agora.
+    """
+    usados_aqui = state.used_file_ids(st, page.slug) | state.rejected_ids(st, page.slug)
+
+    circulacao = {}
+    for slug in grupo_slugs:
+        for file_id in state.used_file_ids(st, slug):
+            circulacao[file_id] = circulacao.get(file_id, 0) + 1
+
+    candidatos = [v for v in videos if v.id not in usados_aqui and v.id not in reservados]
+    ordem_original = {v.id: i for i, v in enumerate(videos)}
+    candidatos.sort(key=lambda v: (circulacao.get(v.id, 0), ordem_original[v.id]))
+    return candidatos
+
+
 def _next_playable(src, queue, page, cfg, st, problems):
     """Tira da fila o proximo video que realmente pode ir ao ar.
 
@@ -53,25 +76,27 @@ def _cleanup(path):
         pass
 
 
-def process_page(cfg, st, page, now):
-    print(f"\n=== {page.name} ({page.post_type}) - {page.source_type} - fuso {page.tz}")
+def process_page(cfg, st, page, now, videos=None, src=None, grupo_slugs=None,
+                 reservados=None):
+    etiqueta = f" [{page.grupo}]" if page.grupo else ""
+    print(f"\n=== {page.name}{etiqueta} ({page.post_type}) - fuso {page.tz}")
 
     problems = []
-    src = sources.get(page)
-    videos = src.list_videos()
+    src = src or sources.get(page)
+    videos = videos if videos is not None else src.list_videos()
     if not videos:
         print("  ! pasta sem videos")
         return 0, [f"{page.name}: pasta vazia"]
 
-    rejected = state.rejected_ids(st, page.slug)
-    used = state.used_file_ids(st, page.slug) | rejected
-    queue = [v for v in videos if v.id not in used]
+    grupo_slugs = grupo_slugs or [page.slug]
+    reservados = reservados if reservados is not None else set()
+    queue = montar_fila(videos, page, st, grupo_slugs, reservados)
 
     if not queue:
         if cfg.recycle:
             print("  fila esgotada -> reciclando a pasta do inicio")
             state.reset_used(st, page.slug)
-            queue = [v for v in videos if v.id not in rejected]
+            queue = montar_fila(videos, page, st, grupo_slugs, reservados)
         else:
             msg = f"{page.name}: sem videos novos ({len(videos)} na pasta, todos ja usados)"
             print(f"  ! {msg}")
@@ -105,6 +130,8 @@ def process_page(cfg, st, page, now):
             problems.append(f"{page.name}: acabaram os videos utilizaveis em {_fmt(slot)}")
             break
 
+        # reserva: nenhuma pagina irma pega este video nesta execucao
+        reservados.add(item.id)
         print(f"     {item.name}")
         caption = caption_for(item, captions, page)
         when_ts = int(slot.timestamp()) if cfg.mode == "schedule" else None
@@ -158,16 +185,38 @@ def run():
     print(f"Rodando em {now:%d/%m/%Y %H:%M} ({cfg.tz}) | modo={cfg.mode}"
           + (" | DRY RUN" if DRY_RUN else ""))
 
-    total, problems = 0, []
+    # Paginas da mesma etiqueta compartilham pasta: lista de videos e reservas
+    # ficam no nivel do grupo, senao duas paginas publicariam o mesmo arquivo.
+    grupos = {}
     for page in cfg.pages:
-        _warn_token(page)
-        try:
-            posted, page_problems = process_page(cfg, st, page, now)
-            total += posted
-            problems.extend(page_problems)
-        except Exception as e:
-            traceback.print_exc()
-            problems.append(f"{page.name}: erro geral -> {e}")
+        grupos.setdefault(page.grupo or f"__{page.slug}", []).append(page)
+
+    total, problems = 0, []
+    for nome_grupo, paginas in grupos.items():
+        videos, src, reservados = None, None, set()
+        slugs = [p.slug for p in paginas]
+
+        if len(paginas) > 1:
+            print(f"\n### Etiqueta '{nome_grupo}': {len(paginas)} paginas dividindo a pasta")
+            try:
+                src = sources.get(paginas[0])
+                videos = src.list_videos()
+            except Exception as e:
+                traceback.print_exc()
+                problems.append(f"etiqueta {nome_grupo}: nao consegui ler a pasta -> {e}")
+                continue
+
+        for page in paginas:
+            _warn_token(page)
+            try:
+                posted, page_problems = process_page(
+                    cfg, st, page, now, videos=videos, src=src,
+                    grupo_slugs=slugs, reservados=reservados)
+                total += posted
+                problems.extend(page_problems)
+            except Exception as e:
+                traceback.print_exc()
+                problems.append(f"{page.name}: erro geral -> {e}")
 
     state.save(st)
 

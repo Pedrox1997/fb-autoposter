@@ -172,14 +172,13 @@
   </div>
 
   <div id="tela-paginas" hidden>
-    <h1>Páginas</h1>
-    <p class="sub">Marque as que o robô deve alimentar e configure pasta, fuso e horários.</p>
+    <h1>Etiquetas</h1>
+    <p class="sub">Cada etiqueta junta as páginas de um idioma e aponta para uma pasta.
+       As páginas da etiqueta dividem os vídeos: no mesmo horário cada uma leva um
+       arquivo diferente, e nenhum vídeo se repete na mesma página.</p>
     <div id="alerta"></div>
-    <div class="box">
-      <input id="busca" placeholder="Filtrar por nome..." oninput="desenhar()"
-             style="margin-bottom:14px">
-      <div id="paginas"></div>
-    </div>
+    <div id="etiquetas"></div>
+    <button onclick="novaEtiqueta()" style="margin-top:6px">+ Nova etiqueta</button>
   </div>
 
   <div id="tela-nuvem" hidden>
@@ -405,12 +404,25 @@ async function iniciar(){
   document.getElementById("semApp").hidden = !!estado.app_ok;
   document.getElementById("redirectUri").textContent = estado.redirect_uri||"";
 
-  (estado.config.pages||[]).forEach(p => {
-    conf[String(p.page_id)] = {nome:p.name, marcada:true, pasta:p.source||"",
-      tz:p.timezone||estado.config.timezone,
-      horarios:(p.times||(estado.config.defaults||{}).times||[]).map(String),
-      tipo:p.post_type||(estado.config.defaults||{}).post_type||"video",
-      hashtags:p.hashtags||""};
+  const padroes = estado.config.defaults || {};
+
+  grupos = (estado.config.grupos || []).map(g => ({
+    nome: g.nome || "", pasta: g.source || "",
+    tz: g.timezone || estado.config.timezone,
+    horarios: (g.times || padroes.times || []).map(String),
+    tipo: g.post_type || padroes.post_type || "video",
+    hashtags: g.hashtags || "",
+    paginas: (g.paginas || []).map(p => String(p.page_id || p)),
+  }));
+
+  // paginas soltas de configuracoes antigas viram uma etiqueta cada
+  (estado.config.pages || []).forEach(p => {
+    conf[String(p.page_id)] = {nome: p.name};
+    grupos.push({nome: p.name, pasta: p.source || "",
+      tz: p.timezone || estado.config.timezone,
+      horarios: (p.times || padroes.times || []).map(String),
+      tipo: p.post_type || padroes.post_type || "video",
+      hashtags: p.hashtags || "", paginas: [String(p.page_id)]});
   });
 
   if(estado.tem_token){
@@ -418,86 +430,115 @@ async function iniciar(){
     if(r.erro) document.getElementById("alerta").innerHTML =
       `<div class="aviso">Não consegui listar suas páginas: ${escapar(r.erro)}</div>`;
     paginas = r.paginas||[];
-    paginas.forEach(p => {
-      conf[p.id] = conf[p.id] || {nome:p.nome, marcada:false, pasta:"",
-        tz:estado.config.timezone||"America/Sao_Paulo",
-        horarios:((estado.config.defaults||{}).times||["09:00","13:00","19:30"]).map(String),
-        tipo:"video", hashtags:""};
-      conf[p.id].nome = p.nome;
-    });
   }
   desenhar();
   carregarResumo();
 }
 
-/* ---------------- paginas ---------------- */
+/* ---------------- etiquetas ---------------- */
+let grupos = [];   // [{nome, pasta, tz, horarios, tipo, hashtags, paginas:[id]}]
+
+const novaEtiqueta = () => {
+  grupos.push({nome:"", pasta:"", tz:estado.config.timezone||"America/Sao_Paulo",
+    horarios:["09:00","13:00","19:30"], tipo:"video", hashtags:"", paginas:[]});
+  desenhar();
+};
+const tirarEtiqueta = i => { if(confirm("Remover esta etiqueta?")){ grupos.splice(i,1); desenhar(); } };
+const campoG = (i,k,v) => { grupos[i][k]=v; };
+const tirarHora = (i,h) => { grupos[i].horarios.splice(h,1); desenhar(); };
+function porHora(i,v){ if(!v) return;
+  if(!grupos[i].horarios.includes(v)) grupos[i].horarios.push(v);
+  grupos[i].horarios.sort(); desenhar(); }
+function alternarPagina(i,id,ligado){
+  const lista = grupos[i].paginas;
+  const pos = lista.indexOf(id);
+  if(ligado && pos<0) lista.push(id);
+  if(!ligado && pos>=0) lista.splice(pos,1);
+  desenhar();
+}
+
 function desenhar(){
-  const filtro=(document.getElementById("busca").value||"").toLowerCase();
-  const lista = paginas.length ? paginas
-    : Object.entries(conf).map(([id,c])=>({id,nome:c.nome}));
-  document.getElementById("paginas").innerHTML = lista
-    .filter(p => p.nome.toLowerCase().includes(filtro))
-    .map(p => { const c=conf[p.id]; return `<div class="pagina ${c.marcada?"on":""}">
+  const alvo = document.getElementById("etiquetas");
+  if(!alvo) return;
+  if(!grupos.length){
+    alvo.innerHTML = '<div class="box"><p class="vazio">Nenhuma etiqueta ainda. '
+      + 'Crie uma para cada idioma — por exemplo "Inglês", com as 3 páginas em inglês '
+      + 'e a pasta de vídeos em inglês.</p></div>';
+    return;
+  }
+  alvo.innerHTML = grupos.map((g,i) => {
+    const fusos = (estado.fusos||[]).map(f =>
+      `<option value="${f.tz}" ${g.tz===f.tz?"selected":""}>${f.nome} — ${f.tz}</option>`).join("");
+    const membros = (paginas.length ? paginas : []).map(p => {
+      const marcado = g.paginas.includes(p.id);
+      const noutra = !marcado && grupos.some((o,j)=> j!==i && o.paginas.includes(p.id));
+      return `<label class="item" style="cursor:pointer;${noutra?"opacity:.45":""}">
+        <input type="checkbox" ${marcado?"checked":""} ${noutra?"disabled":""}
+               onchange="alternarPagina(${i},'${p.id}',this.checked)">
+        <span style="flex:1">${escapar(p.nome)}</span>
+        ${noutra?'<span class="rotulo">já em outra etiqueta</span>':""}</label>`;
+    }).join("") || '<p class="vazio">Conecte um perfil para listar suas páginas.</p>';
+
+    return `<div class="box" style="margin-bottom:14px">
       <div class="topo">
-        <input type="checkbox" ${c.marcada?"checked":""} onchange="marcar('${p.id}',this.checked)">
-        <b>${escapar(p.nome)}</b><span class="id">${p.id}</span></div>
-      ${c.marcada?corpo(p.id,c):""}</div>`;
-    }).join("") || '<p class="vazio">Nenhuma página encontrada.</p>';
+        <input value="${escapar(g.nome)}" placeholder="Nome da etiqueta (ex: Inglês)"
+               style="flex:1;font-weight:600" onchange="campoG(${i},'nome',this.value)">
+        <span class="pill">${g.paginas.length} página(s)</span>
+        <button class="sec" onclick="tirarEtiqueta(${i})">Remover</button>
+      </div>
+
+      <label>Pasta dos vídeos desta etiqueta</label>
+      <div class="pasta">
+        <input value="${escapar(g.pasta)}" placeholder="onedrive:Pasta/Subpasta"
+               onchange="campoG(${i},'pasta',this.value); contarG(${i})">
+        <button class="sec" onclick="abrirPasta(${i})">Procurar</button></div>
+      <div class="conta" id="conta-${i}"></div>
+
+      <div class="grade">
+        <div><label>Fuso do público</label>
+          <select onchange="campoG(${i},'tz',this.value)">${fusos}</select></div>
+        <div><label>Formato</label>
+          <select onchange="campoG(${i},'tipo',this.value)">
+            <option value="video" ${g.tipo==="video"?"selected":""}>Vídeo (qualquer duração)</option>
+            <option value="reel" ${g.tipo==="reel"?"selected":""}>Reels (até 90s)</option>
+          </select></div>
+      </div>
+
+      <label>Horários (valem para todas as páginas da etiqueta)</label>
+      <div class="horarios">
+        ${g.horarios.map((h,x)=>`<span class="hora">${h}
+          <button onclick="tirarHora(${i},${x})">×</button></span>`).join("")}
+        <input type="time" style="width:130px" onchange="porHora(${i},this.value); this.value=''">
+      </div>
+
+      <label>Hashtags no fim da legenda (opcional)</label>
+      <input value="${escapar(g.hashtags)}" placeholder="#fe #deus"
+             onchange="campoG(${i},'hashtags',this.value)">
+
+      <label>Páginas desta etiqueta</label>
+      <div style="max-height:220px;overflow:auto;border:1px solid var(--linha);
+                  border-radius:9px;padding:4px">${membros}</div>
+    </div>`;
+  }).join("");
 }
 
-function corpo(id,c){
-  const fusos = (estado.fusos||[]).map(f =>
-    `<option value="${f.tz}" ${c.tz===f.tz?"selected":""}>${f.nome} — ${f.tz}</option>`).join("");
-  return `<div class="corpo">
-    <label>Pasta dos vídeos</label>
-    <div class="pasta">
-      <input value="${escapar(c.pasta)}" placeholder="onedrive:Pasta/Subpasta"
-             onchange="campo('${id}','pasta',this.value); contar('${id}')">
-      <button class="sec" onclick="abrirPasta('${id}')">Procurar</button></div>
-    <div class="conta" id="conta-${id}"></div>
-    <div class="grade">
-      <div><label>Fuso do público</label>
-        <select onchange="campo('${id}','tz',this.value)">${fusos}</select></div>
-      <div><label>Formato</label>
-        <select onchange="campo('${id}','tipo',this.value)">
-          <option value="video" ${c.tipo==="video"?"selected":""}>Vídeo (qualquer duração)</option>
-          <option value="reel" ${c.tipo==="reel"?"selected":""}>Reels (até 90s)</option>
-        </select></div>
-    </div>
-    <label>Horários (no fuso acima)</label>
-    <div class="horarios">
-      ${c.horarios.map((h,i)=>`<span class="hora">${h}
-        <button onclick="tirarHora('${id}',${i})">×</button></span>`).join("")}
-      <input type="time" style="width:130px" onchange="porHora('${id}',this.value); this.value=''">
-    </div>
-    <label>Hashtags no fim da legenda (opcional)</label>
-    <input value="${escapar(c.hashtags)}" placeholder="#fe #deus"
-           onchange="campo('${id}','hashtags',this.value)">
-    <div style="margin-top:14px">
-      <button class="sec" onclick="testar('${c.nome.replace(/'/g,"\\'")}')">
-        Testar: publicar 1 vídeo agora</button></div>
-  </div>`;
-}
-
-const campo=(id,k,v)=>{conf[id][k]=v};
-const marcar=(id,v)=>{conf[id].marcada=v; desenhar()};
-const tirarHora=(id,i)=>{conf[id].horarios.splice(i,1); desenhar()};
-function porHora(id,v){ if(!v) return;
-  if(!conf[id].horarios.includes(v)) conf[id].horarios.push(v);
-  conf[id].horarios.sort(); desenhar(); }
-
-async function contar(id){
-  const alvo=document.getElementById("conta-"+id);
-  if(!conf[id].pasta){ alvo.textContent=""; return; }
+async function contarG(i){
+  const alvo=document.getElementById("conta-"+i);
+  if(!alvo) return;
+  if(!grupos[i].pasta){ alvo.textContent=""; return; }
   alvo.textContent="verificando…";
-  const r = await api("/api/contar?caminho="+encodeURIComponent(conf[id].pasta));
-  alvo.textContent = r.erro ? "erro: "+r.erro
-    : `${r.total} vídeo(s) · ${r.mb} MB · ex: ${(r.exemplos||[]).join(" | ").slice(0,90)}`;
+  const r = await api("/api/contar?caminho="+encodeURIComponent(grupos[i].pasta));
+  if(r.erro){ alvo.textContent = "erro: "+r.erro; return; }
+  const paginasNaEtiqueta = Math.max(1, grupos[i].paginas.length);
+  const porDia = paginasNaEtiqueta * grupos[i].horarios.length;
+  const dias = porDia ? (r.total/porDia).toFixed(1) : "?";
+  alvo.textContent = `${r.total} vídeo(s) · ${r.mb} MB · dá para ${dias} dia(s) `
+                   + `com ${paginasNaEtiqueta} página(s) × ${grupos[i].horarios.length} post(s)`;
 }
 
 /* ---------------- navegador de pastas ---------------- */
-async function abrirPasta(id){
-  atual=id; caminhoAtual=conf[id].pasta||"onedrive:";
+async function abrirPasta(indice){
+  atual=indice; caminhoAtual=grupos[indice].pasta||"onedrive:";
   dlgPasta.showModal();
   const r = await api("/api/remotes");
   const atualRemote = caminhoAtual.split(":")[0];
@@ -554,26 +595,36 @@ function subir(){
                                                  : caminhoAtual.split(":")[0]+":";
   navegar();
 }
-function usarPasta(){ conf[atual].pasta=caminhoAtual; dlgPasta.close(); desenhar(); contar(atual); }
+function usarPasta(){ grupos[atual].pasta=caminhoAtual; dlgPasta.close();
+                      desenhar(); contarG(atual); }
 
 /* ---------------- salvar ---------------- */
+const nomeDaPagina = id => (paginas.find(p=>p.id===id)||{}).nome
+                        || (conf[id]||{}).nome || id;
+
 function montar(){
-  const pages = Object.entries(conf).filter(([,c])=>c.marcada).map(([id,c]) => {
-    const p={name:c.nome, page_id:String(id), timezone:c.tz, source:c.pasta,
-             post_type:c.tipo, times:c.horarios};
-    if(c.hashtags) p.hashtags=c.hashtags;
-    return p;
+  const lista = grupos.filter(g => g.paginas.length).map(g => {
+    const item = {nome:g.nome||"Sem nome", source:g.pasta, timezone:g.tz,
+                  post_type:g.tipo, times:g.horarios,
+                  paginas:g.paginas.map(id => ({name:nomeDaPagina(id), page_id:String(id)}))};
+    if(g.hashtags) item.hashtags = g.hashtags;
+    return item;
   });
   return {timezone:estado.config.timezone||"America/Sao_Paulo",
-          defaults:{order:"name"}, pages};
+          defaults:{order:"name"}, grupos:lista, pages:[]};
 }
+
 async function salvar(){
-  const d=montar();
-  const semPasta=d.pages.filter(p=>!p.source).map(p=>p.name);
+  const d = montar();
+  if(!d.grupos.length){ msg("Crie uma etiqueta e marque as páginas dela.","var(--erro)"); return; }
+  const semPasta = d.grupos.filter(g=>!g.source).map(g=>g.nome);
   if(semPasta.length){ msg("Falta a pasta de: "+semPasta.join(", "),"var(--erro)"); return; }
-  if(!d.pages.length){ msg("Marque pelo menos uma página.","var(--erro)"); return; }
-  const r=await api("/api/salvar", d);
-  msg(r.ok?`Salvo: ${r.paginas} página(s).`:"Erro ao salvar", r.ok?"var(--verde)":"var(--erro)");
+  const semHora = d.grupos.filter(g=>!g.times.length).map(g=>g.nome);
+  if(semHora.length){ msg("Falta horário em: "+semHora.join(", "),"var(--erro)"); return; }
+
+  const r = await api("/api/salvar", d);
+  msg(r.ok ? `Salvo: ${r.etiquetas} etiqueta(s), ${r.paginas} página(s).` : "Erro ao salvar",
+      r.ok ? "var(--verde)" : "var(--erro)");
   return r.ok;
 }
 async function publicar(){
