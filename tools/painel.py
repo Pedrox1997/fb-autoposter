@@ -10,6 +10,7 @@ Escuta apenas em 127.0.0.1: nao fica exposto na rede.
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -47,6 +48,70 @@ FUSOS = [
 # --------------------------------------------------------------- utilidades
 
 SLOTS_TOKEN = ["FB_USER_TOKEN", "FB_USER_TOKEN_2"]
+
+# Login do Facebook: o usuario autoriza numa tela e o painel recebe o token,
+# em vez de ele copiar do Graph API Explorer na mao.
+REDIRECT_URI = f"http://localhost:{PORTA}/oauth/retorno"
+ESCOPOS = "pages_show_list,pages_read_engagement,pages_manage_posts"
+GRAPH_OAUTH = "https://graph.facebook.com/v23.0/oauth/access_token"
+DIALOGO = "https://www.facebook.com/v23.0/dialog/oauth"
+
+
+def salvar_env(chave, valor):
+    linhas = []
+    if os.path.exists(ENV_LOCAL):
+        with open(ENV_LOCAL, "r", encoding="utf-8") as f:
+            linhas = [ln for ln in f.read().splitlines()
+                      if ln.strip() and not ln.startswith(f"{chave}=")]
+    linhas.append(f"{chave}={valor}")
+    with open(ENV_LOCAL, "w", encoding="utf-8") as f:
+        f.write("\n".join(linhas) + "\n")
+    os.environ[chave] = valor
+
+
+def app_configurado():
+    config._carregar_env_local()
+    return bool(os.environ.get("FB_APP_ID") and os.environ.get("FB_APP_SECRET"))
+
+
+def url_login(slot):
+    """Endereco da tela de autorizacao do Facebook."""
+    from urllib.parse import urlencode
+    if not app_configurado():
+        return None
+    parametros = {
+        "client_id": os.environ["FB_APP_ID"],
+        "redirect_uri": REDIRECT_URI,
+        "scope": ESCOPOS,
+        "response_type": "code",
+        "state": slot,
+        # forca a tela de escolha de paginas mesmo se ja autorizou antes
+        "auth_type": "rerequest",
+    }
+    return f"{DIALOGO}?{urlencode(parametros)}"
+
+
+def trocar_codigo(codigo):
+    """code -> token curto -> token de longa duracao."""
+    import requests
+    curto = requests.get(GRAPH_OAUTH, timeout=60, params={
+        "client_id": os.environ["FB_APP_ID"],
+        "client_secret": os.environ["FB_APP_SECRET"],
+        "redirect_uri": REDIRECT_URI,
+        "code": codigo,
+    })
+    if curto.status_code >= 400:
+        raise RuntimeError(curto.json().get("error", {}).get("message", curto.text[:200]))
+
+    longo = requests.get(GRAPH_OAUTH, timeout=60, params={
+        "grant_type": "fb_exchange_token",
+        "client_id": os.environ["FB_APP_ID"],
+        "client_secret": os.environ["FB_APP_SECRET"],
+        "fb_exchange_token": curto.json()["access_token"],
+    })
+    if longo.status_code >= 400:
+        raise RuntimeError(longo.json().get("error", {}).get("message", longo.text[:200]))
+    return longo.json()["access_token"]
 
 
 def token_usuario(slot="FB_USER_TOKEN"):
@@ -107,18 +172,28 @@ def listar_paginas():
     }
 
 
+LINHA_LSD = re.compile(r"^\s*-?\d+\s+\S+\s+\S+\s+(\d+)\s+(.*)$")
+
+
 def listar_pastas(caminho):
-    """Subpastas de um caminho do rclone, para navegar ate a pasta dos videos."""
+    """Subpastas com a quantidade de itens dentro de cada uma.
+
+    Usa 'lsd' em vez de 'lsjson' porque ele ja traz a contagem de objetos de
+    graca - assim da para ver onde tem conteudo sem abrir pasta por pasta.
+    """
     caminho = (caminho or "onedrive:").strip()
     try:
-        saida = rclone._run(["lsjson", "--dirs-only", caminho], 300)
-        itens = json.loads(saida or "[]")
+        saida = rclone._run(["lsd", caminho], 300)
     except Exception as e:
         return {"erro": str(e), "pastas": []}
-    return {
-        "caminho": caminho,
-        "pastas": sorted([i["Name"] for i in itens], key=str.lower),
-    }
+
+    pastas = []
+    for linha in saida.splitlines():
+        casou = LINHA_LSD.match(linha)
+        if casou:
+            pastas.append({"nome": casou.group(2).strip(), "itens": int(casou.group(1))})
+    pastas.sort(key=lambda p: p["nome"].lower())
+    return {"caminho": caminho, "pastas": pastas}
 
 
 def contar_videos(caminho):
@@ -213,6 +288,8 @@ class Painel(BaseHTTPRequestHandler):
             return self._responder({
                 "tem_token": any(tokens_presentes().values()),
                 "tokens": tokens_presentes(),
+                "app_ok": app_configurado(),
+                "redirect_uri": REDIRECT_URI,
                 "tem_rclone": bool(_rclone_ok()),
                 "fusos": [{"nome": n, "tz": t} for n, t in FUSOS],
                 "config": ler_config(),
@@ -221,6 +298,19 @@ class Painel(BaseHTTPRequestHandler):
         if rota.path == "/api/paginas":
             return self._responder(listar_paginas())
 
+        if rota.path == "/oauth/entrar":
+            slot = query.get("slot", ["FB_USER_TOKEN"])[0]
+            destino = url_login(slot)
+            if not destino:
+                return self._responder({"erro": "app nao configurado"}, 400)
+            self.send_response(302)
+            self.send_header("Location", destino)
+            self.end_headers()
+            return
+
+        if rota.path == "/oauth/retorno":
+            return self._retorno_oauth(query)
+
         if rota.path == "/api/pastas":
             return self._responder(listar_pastas(query.get("caminho", [""])[0]))
 
@@ -228,6 +318,39 @@ class Painel(BaseHTTPRequestHandler):
             return self._responder(contar_videos(query.get("caminho", [""])[0]))
 
         self._responder({"erro": "rota desconhecida"}, 404)
+
+    def _pagina_simples(self, titulo, texto, cor="#0e8a4f"):
+        corpo = f"""<!doctype html><meta charset="utf-8">
+        <body style="font:16px system-ui;padding:40px;max-width:620px;margin:auto">
+        <h2 style="color:{cor}">{titulo}</h2><p>{texto}</p>
+        <p><a href="/">Voltar ao painel</a></p>
+        <script>setTimeout(()=>location.href="/", 2500)</script></body>""".encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(corpo)))
+        self.end_headers()
+        self.wfile.write(corpo)
+
+    def _retorno_oauth(self, query):
+        if query.get("error"):
+            return self._pagina_simples(
+                "Autorizacao cancelada",
+                query.get("error_description", ["Você recusou a permissão."])[0], "#c0392b")
+
+        codigo = query.get("code", [""])[0]
+        slot = query.get("state", ["FB_USER_TOKEN"])[0]
+        if not codigo:
+            return self._pagina_simples("Faltou o código", "O Facebook não devolveu o código.",
+                                        "#c0392b")
+        try:
+            token = trocar_codigo(codigo)
+            salvar_token(token, slot)
+            quantas = len(listar_paginas().get("paginas", []))
+            return self._pagina_simples(
+                "Perfil conectado",
+                f"{quantas} página(s) disponíveis. Voltando ao painel...")
+        except Exception as e:
+            return self._pagina_simples("Não consegui conectar", str(e)[:400], "#c0392b")
 
     def do_POST(self):
         tamanho = int(self.headers.get("Content-Length") or 0)
@@ -242,6 +365,10 @@ class Painel(BaseHTTPRequestHandler):
                 resultado = salvar_token(dados.get("token", "").strip(),
                                          dados.get("slot", "FB_USER_TOKEN"))
                 return self._responder({"ok": True, **resultado})
+            if rota == "/api/app":
+                salvar_env("FB_APP_ID", dados.get("app_id", "").strip())
+                salvar_env("FB_APP_SECRET", dados.get("app_secret", "").strip())
+                return self._responder({"ok": True, "redirect_uri": REDIRECT_URI})
             if rota == "/api/salvar":
                 return self._responder(escrever_config(dados))
             if rota == "/api/publicar":

@@ -88,26 +88,47 @@
   <div id="alerta"></div>
 
   <div class="card">
-    <h2>Tokens do Facebook</h2>
-    <p class="dica">Cole o token de usuário de longa duração. Ele fica no seu computador
-       (arquivo <code>.env</code>, fora do Git) e é cadastrado como secret do repositório.
-       Se suas páginas estão em <b>dois perfis diferentes</b>, cadastre um token para cada.</p>
-    <div class="grade">
-      <div>
-        <label>Perfil</label>
-        <select id="slot">
-          <option value="FB_USER_TOKEN">Perfil 1 (principal)</option>
-          <option value="FB_USER_TOKEN_2">Perfil 2 (outras páginas)</option>
-        </select>
+    <h2>Perfis do Facebook</h2>
+    <p class="dica" id="estadoTokens"></p>
+
+    <div id="comApp" hidden>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button onclick="entrarFB('FB_USER_TOKEN')">+ Perfil 1</button>
+        <button class="sec" onclick="entrarFB('FB_USER_TOKEN_2')">+ Perfil 2</button>
+        <button class="sec" onclick="verManual()">Colar token na mão</button>
       </div>
-      <div>
-        <label>Token</label>
-        <input id="token" type="password" placeholder="EAAT5...">
-      </div>
+      <p class="dica" style="margin-top:10px">Abre a tela do Facebook; você autoriza e
+         escolhe as páginas. O token vem sozinho para cá.</p>
     </div>
-    <div style="margin-top:12px;display:flex;gap:10px;align-items:center">
-      <button onclick="salvarToken()">Salvar token</button>
-      <span class="dica" id="estadoTokens" style="margin:0"></span>
+
+    <div id="semApp">
+      <p class="dica">Para o botão "+ Perfil" funcionar, informe os dados do seu app
+         (developers.facebook.com → seu app → <b>Configurações → Básico</b>).</p>
+      <div class="grade">
+        <div><label>ID do aplicativo</label><input id="appId" placeholder="1399856292211648"></div>
+        <div><label>Chave secreta do app</label><input id="appSecret" type="password"></div>
+      </div>
+      <div class="aviso" style="margin-top:12px">
+        No app, vá em <b>Login do Facebook → Configurações</b> e adicione este endereço em
+        "URIs de redirecionamento do OAuth válidos":<br>
+        <code id="redirectUri"></code>
+      </div>
+      <button onclick="salvarApp()">Salvar dados do app</button>
+    </div>
+
+    <div id="manual" hidden style="margin-top:16px;padding-top:16px;border-top:1px dashed var(--linha)">
+      <div class="grade">
+        <div>
+          <label>Perfil</label>
+          <select id="slot">
+            <option value="FB_USER_TOKEN">Perfil 1</option>
+            <option value="FB_USER_TOKEN_2">Perfil 2</option>
+          </select>
+        </div>
+        <div><label>Token de longa duração</label>
+             <input id="token" type="password" placeholder="EAAT5..."></div>
+      </div>
+      <div style="margin-top:12px"><button onclick="salvarToken()">Salvar token</button></div>
     </div>
   </div>
 
@@ -161,8 +182,11 @@ async function iniciar(){
      <span class="chip ${estado.tem_rclone?"ok":"nao"}">rclone ${estado.tem_rclone?"ok":"faltando"}</span>`;
   const t = estado.tokens || {};
   document.getElementById("estadoTokens").textContent =
-    "Perfil 1: " + (t.FB_USER_TOKEN ? "cadastrado" : "faltando")
-    + " · Perfil 2: " + (t.FB_USER_TOKEN_2 ? "cadastrado" : "não usado");
+    "Perfil 1: " + (t.FB_USER_TOKEN ? "conectado" : "não conectado")
+    + " · Perfil 2: " + (t.FB_USER_TOKEN_2 ? "conectado" : "não usado");
+  document.getElementById("comApp").hidden = !estado.app_ok;
+  document.getElementById("semApp").hidden = !!estado.app_ok;
+  document.getElementById("redirectUri").textContent = estado.redirect_uri || "";
 
   (estado.config.pages || []).forEach(p => {
     conf[String(p.page_id)] = {
@@ -307,15 +331,30 @@ async function navegar(){
   const r = await api("/api/pastas?caminho=" + encodeURIComponent(caminhoAtual));
 
   if(r.erro){ lista.innerHTML = `<p class="dica">erro: ${escapar(r.erro)}</p>`; return; }
-  if(!r.pastas.length){
-    lista.innerHTML = "<p class='dica'>Esta pasta não tem subpastas — é o destino final. "
-                    + "Clique em <b>Usar esta pasta</b>, ou use o caminho acima para voltar.</p>";
-    return;
-  }
+
   // data-nome + listener: nome com aspas, parenteses ou acento nao quebra
-  lista.innerHTML = r.pastas.map(n =>
-    `<div class="item" data-nome="${escapar(n)}">📁 ${escapar(n)}</div>`).join("");
+  const subpastas = r.pastas.map(p =>
+    `<div class="item" data-nome="${escapar(p.nome)}">
+       <span style="flex:1">📁 ${escapar(p.nome)}</span>
+       <span class="dica" style="margin:0">${p.itens} item(ns)</span>
+     </div>`).join("");
+
+  lista.innerHTML =
+    `<div id="aquiDentro" class="dica" style="padding:8px 10px">contando vídeos…</div>`
+    + (subpastas || "<p class='dica'>Sem subpastas — esta é a pasta final.</p>");
   lista.querySelectorAll(".item").forEach(el => el.onclick = () => entrar(el.dataset.nome));
+
+  // contagem de videos da pasta em que estamos, para decidir sem sair daqui
+  const alvo = caminhoAtual;
+  const c = await api("/api/contar?caminho=" + encodeURIComponent(alvo));
+  if(alvo !== caminhoAtual) return;            // usuario ja navegou para outra
+  const aqui = document.getElementById("aquiDentro");
+  if(!aqui) return;
+  if(c.erro){ aqui.textContent = "não consegui contar: " + c.erro; return; }
+  aqui.innerHTML = c.total
+    ? `<b style="color:var(--verde)">${c.total} vídeo(s) aqui</b> · ${c.mb} MB<br>
+       <span style="opacity:.8">ex: ${escapar((c.exemplos||[]).join("  |  ").slice(0,110))}</span>`
+    : "<b>nenhum vídeo direto nesta pasta</b> — entre numa das subpastas abaixo";
 }
 
 function entrar(nome){
@@ -358,6 +397,17 @@ async function publicar(){
   msg("enviando para o GitHub…");
   const r = await api("/api/publicar", {});
   msg(r.ok ? r.mensagem : "Erro: " + r.erro, r.ok ? "var(--verde)" : "var(--erro)");
+}
+
+const entrarFB = slot => location.href = "/oauth/entrar?slot=" + slot;
+const verManual = () => document.getElementById("manual").hidden = false;
+
+async function salvarApp(){
+  const id = document.getElementById("appId").value.trim();
+  const seg = document.getElementById("appSecret").value.trim();
+  if(!id || !seg){ msg("Preencha os dois campos.", "var(--erro)"); return; }
+  await api("/api/app", {app_id:id, app_secret:seg});
+  location.reload();
 }
 
 async function salvarToken(){
