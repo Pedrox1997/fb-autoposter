@@ -209,6 +209,18 @@
         </div>
         <p class="vazio">Cada perfil conectado traz as páginas que ele administra.
            Pode conectar quantos quiser.</p>
+
+        <details style="margin-top:14px">
+          <summary style="cursor:pointer;color:var(--fraco);font-size:13px">
+            O login diz "Recurso indisponível"?</summary>
+          <p class="vazio">Apps com <b>Login do Facebook para Empresas</b> exigem o ID de uma
+             configuração de login, criada em <b>Login do Facebook para Empresas →
+             Configurações → Criar configuração</b>. Cole o ID aqui:</p>
+          <div style="display:flex;gap:8px">
+            <input id="configId" placeholder="ID da configuração de login">
+            <button class="sec" onclick="salvarConfigId()">Salvar</button>
+          </div>
+        </details>
       </div>
 
       <div id="semApp">
@@ -637,11 +649,19 @@ async function publicar(){
 /* ---------------- perfis ---------------- */
 const entrarFB = slot => location.href="/oauth/entrar"+(slot?"?slot="+slot:"");
 const verManual = () => document.getElementById("manual").hidden=false;
+async function salvarConfigId(){
+  const cfg=document.getElementById("configId").value.trim();
+  if(!cfg){ msg("Cole o ID da configuração.","var(--erro)"); return; }
+  await api("/api/app",{app_id:estado.app_id||"", app_secret:"", config_id:cfg});
+  location.reload();
+}
+
 async function salvarApp(){
   const id=document.getElementById("appId").value.trim();
   const s=document.getElementById("appSecret").value.trim();
-  if(!id||!s){ msg("Preencha os dois campos.","var(--erro)"); return; }
-  await api("/api/app",{app_id:id, app_secret:s}); location.reload();
+  const cfg=(document.getElementById("configId")||{}).value?.trim()||"";
+  if(!id||!s){ msg("Preencha ID e chave secreta.","var(--erro)"); return; }
+  await api("/api/app",{app_id:id, app_secret:s, config_id:cfg}); location.reload();
 }
 async function salvarToken(){
   const t=document.getElementById("token").value.trim();

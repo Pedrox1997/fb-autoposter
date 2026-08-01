@@ -75,19 +75,31 @@ def app_configurado():
 
 
 def url_login(slot):
-    """Endereco da tela de autorizacao do Facebook."""
+    """Endereco da tela de autorizacao do Facebook.
+
+    Apps com 'Login do Facebook para Empresas' nao aceitam a lista de permissoes
+    na URL: eles exigem o id de uma configuracao de login criada no painel do
+    app. Quando FB_LOGIN_CONFIG_ID existe, usamos esse formato.
+    """
     from urllib.parse import urlencode
     if not app_configurado():
         return None
+
     parametros = {
         "client_id": os.environ["FB_APP_ID"],
         "redirect_uri": REDIRECT_URI,
-        "scope": ESCOPOS,
         "response_type": "code",
         "state": slot,
-        # forca a tela de escolha de paginas mesmo se ja autorizou antes
-        "auth_type": "rerequest",
     }
+
+    config_id = os.environ.get("FB_LOGIN_CONFIG_ID", "").strip()
+    if config_id:
+        parametros["config_id"] = config_id
+    else:
+        parametros["scope"] = ESCOPOS
+        # forca a tela de escolha de paginas mesmo se ja autorizou antes
+        parametros["auth_type"] = "rerequest"
+
     return f"{DIALOGO}?{urlencode(parametros)}"
 
 
@@ -545,6 +557,8 @@ class Painel(BaseHTTPRequestHandler):
                 "perfis": perfis_conectados(),
                 "proximo_slot": proximo_slot(),
                 "app_ok": app_configurado(),
+                "app_id": os.environ.get("FB_APP_ID", ""),
+                "config_id": os.environ.get("FB_LOGIN_CONFIG_ID", ""),
                 "redirect_uri": REDIRECT_URI,
                 "tem_rclone": bool(_rclone_ok()),
                 "fusos": [{"nome": n, "tz": t} for n, t in FUSOS],
@@ -637,8 +651,13 @@ class Painel(BaseHTTPRequestHandler):
                                          dados.get("slot", "FB_USER_TOKEN"))
                 return self._responder({"ok": True, **resultado})
             if rota == "/api/app":
-                salvar_env("FB_APP_ID", dados.get("app_id", "").strip())
-                salvar_env("FB_APP_SECRET", dados.get("app_secret", "").strip())
+                # campo vazio nao apaga o que ja esta salvo
+                for chave, campo in (("FB_APP_ID", "app_id"),
+                                     ("FB_APP_SECRET", "app_secret"),
+                                     ("FB_LOGIN_CONFIG_ID", "config_id")):
+                    valor = (dados.get(campo) or "").strip()
+                    if valor:
+                        salvar_env(chave, valor)
                 return self._responder({"ok": True, "redirect_uri": REDIRECT_URI})
             if rota == "/api/salvar":
                 return self._responder(escrever_config(dados))
