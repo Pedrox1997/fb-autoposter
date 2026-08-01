@@ -109,11 +109,16 @@ No repositório: **Settings → Secrets and variables → Actions → New reposi
 
 | Secret | Conteúdo |
 |---|---|
-| `PAGE1_ID` | ID numérico da Página |
-| `PAGE1_TOKEN` | Page Access Token |
-| `PAGE1_SOURCE` | caminho da pasta, ex: `onedrive:Videos/Daily Blessings` |
-| `RCLONE_CONF` | conteúdo inteiro do `rclone.conf` (só para OneDrive e afins) |
-| `GOOGLE_SERVICE_ACCOUNT_JSON` | JSON da conta de serviço (só para Google Drive) |
+| `FB_USER_TOKEN` | seu token de usuário de longa duração — dá conta de **todas** as páginas |
+| `RCLONE_CONF` | conteúdo inteiro do `rclone.conf` |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | só se usar Google Drive |
+
+São **dois secrets no total**, independente de quantas páginas você tiver. O
+`page_id` e o caminho da pasta ficam no `config.yaml`, porque não são sigilosos.
+
+> Se preferir um token por página, use `token_env: PAGE1_TOKEN` no bloco da
+> página e cadastre o secret correspondente. O robô prefere o token específico
+> quando ele existe.
 
 ### 6. Ajustar o `config.yaml`
 
@@ -128,9 +133,34 @@ Ele mostra exatamente o que faria, sem postar nada.
 
 ## Adicionar mais páginas
 
-Cadastre `PAGE2_ID`, `PAGE2_TOKEN`, `PAGE2_SOURCE` nos Secrets e duplique o
-bloco no `config.yaml` (já tem um comentado). **O workflow não precisa ser
-alterado** — ele injeta todas as secrets automaticamente.
+Duplique o bloco no `config.yaml` com o nome, o `page_id`, o fuso e a pasta.
+**Não precisa cadastrar secret nenhum**: o `FB_USER_TOKEN` já entrega o token de
+todas as páginas que você administra. Só é preciso que a página tenha sido
+autorizada quando você gerou o token no Graph API Explorer.
+
+O bloco `defaults` no topo evita repetição — horários, `post_type`, `order` e
+hashtags valem para todas as páginas, e cada uma sobrescreve o que quiser:
+
+```yaml
+defaults:
+  post_type: reel
+  times: ["09:00", "13:00", "19:30"]
+
+pages:
+  - name: "Bendiciones"
+    page_id: "0987654321"
+    timezone: America/Mexico_City
+    source: "onedrive:Videos/Bendiciones"
+    times: ["08:00", "20:00"]     # só esta página muda
+```
+
+### Minutos do GitHub Actions
+
+Repositório **privado** tem 2.000 minutos/mês grátis. Com ~30 posts por dia, o
+consumo fica em torno de 900 min/mês — cabe, mas sem folga. Repositório
+**público** tem Actions ilimitado, e os secrets continuam criptografados e
+inacessíveis (inclusive em forks). Se a conta de minutos apertar, tornar o
+repositório público é a solução mais simples.
 
 ## Horário por país
 

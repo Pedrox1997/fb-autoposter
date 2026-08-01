@@ -87,16 +87,47 @@ def load(path=None):
     tz = ZoneInfo(raw.get("timezone", "America/Sao_Paulo"))
     pages = []
 
-    for p in raw.get("pages", []):
-        name = p["name"]
-        page_id = _env(p["page_id_env"], name)
-        token = _env(p["token_env"], name)
+    # Um unico token de usuario pode entregar o token de todas as Paginas.
+    # Com muitas paginas, isso troca dezenas de secrets por um so.
+    user_token = os.environ.get(raw.get("facebook_user_token_env", "FB_USER_TOKEN"), "").strip()
+    tokens_das_paginas = {}
+    if user_token:
+        try:
+            from . import facebook
+            tokens_das_paginas = facebook.page_tokens(user_token)
+            print(f"  {len(tokens_das_paginas)} pagina(s) disponiveis pelo token de usuario")
+        except Exception as e:
+            print(f"  ! nao consegui listar as paginas pelo token de usuario: {e}")
 
+    # 'defaults' evita repetir horarios, hashtags e tipo de post em cada pagina
+    padroes = raw.get("defaults", {}) or {}
+
+    for p in raw.get("pages", []):
+        p = {**padroes, **p}
+        name = p["name"]
+
+        # page_id pode vir direto do YAML (nao e segredo) ou de um secret
+        page_id = str(p.get("page_id") or "").strip()
+        if not page_id and p.get("page_id_env"):
+            page_id = _env(p["page_id_env"], name)
+
+        # token: secret proprio da pagina, senao derivado do token de usuario
+        token = _env(p["token_env"], name) if p.get("token_env") else ""
+        if not token and page_id in tokens_das_paginas:
+            token = tokens_das_paginas[page_id]["token"]
+
+        # source: string direta no YAML ou secret
         src = p.get("source", {}) or {}
-        ref = _env(src.get("env", ""), name) if src.get("env") else ""
+        if isinstance(src, str):
+            ref, tipo = src.strip(), "auto"
+        else:
+            tipo = src.get("type", "auto")
+            ref = _env(src["env"], name) if src.get("env") else (src.get("path") or "").strip()
 
         if not (page_id and token and ref):
-            print(f"  ! Pagina '{name}' incompleta -> ignorada")
+            faltando = [r for r, v in
+                        (("page_id", page_id), ("token", token), ("source", ref)) if not v]
+            print(f"  ! Pagina '{name}' incompleta (falta: {', '.join(faltando)}) -> ignorada")
             continue
 
         times = sorted({_parse_time(t) for t in p.get("times", [])})
@@ -115,7 +146,7 @@ def load(path=None):
                 name=name,
                 page_id=page_id,
                 token=token,
-                source_type=_detect_source(src.get("type", "auto"), ref),
+                source_type=_detect_source(tipo, ref),
                 source_ref=ref,
                 tz=page_tz,
                 post_type=p.get("post_type", "reel").lower(),

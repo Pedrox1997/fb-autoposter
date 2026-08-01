@@ -72,6 +72,33 @@ def page_info(page):
                     params={"fields": "id,name,fan_count", "access_token": page.token})
 
 
+_tokens_cache = {}
+
+
+def page_tokens(user_token):
+    """{page_id: {'name', 'token'}} a partir de um token de usuario.
+
+    Com muitas paginas, evita cadastrar um secret por pagina: um unico token de
+    usuario de longa duracao entrega o token de todas as Paginas que ele
+    administra. Os tokens de Pagina assim derivados nao expiram.
+    """
+    if "map" in _tokens_cache:
+        return _tokens_cache["map"]
+
+    mapa = {}
+    url = f"{GRAPH}/me/accounts"
+    params = {"fields": "name,id,access_token", "limit": 100, "access_token": user_token}
+    while url:
+        data = _request("GET", url, params=params)
+        for p in data.get("data", []):
+            mapa[str(p["id"])] = {"name": p.get("name", ""), "token": p["access_token"]}
+        url = (data.get("paging") or {}).get("next")
+        params = None  # o link de paginacao ja vem completo
+
+    _tokens_cache["map"] = mapa
+    return mapa
+
+
 def token_expires_at(page):
     """Timestamp de expiracao do token (0 = nunca expira). None se indisponivel."""
     try:

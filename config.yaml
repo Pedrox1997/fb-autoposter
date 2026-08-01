@@ -6,59 +6,58 @@
 # Fuso padrao, usado por paginas que nao definirem o proprio.
 timezone: America/Sao_Paulo
 
+# Secret com o token de USUARIO de longa duracao. Com ele o robo descobre
+# sozinho o token de cada Pagina - assim voce nao cadastra um secret por pagina.
+facebook_user_token_env: FB_USER_TOKEN
+
 # schedule = sobe o video e o FACEBOOK publica na hora exata (recomendado)
 # now      = publica no momento em que o workflow rodar
 mode: schedule
 
-# Quantas horas para frente o robo agenda de uma vez
-schedule_horizon_hours: 30
+schedule_horizon_hours: 30      # quanto tempo para frente o robo agenda
+now_tolerance_minutes: 45       # tolerancia do mode: now, se o cron atrasar
+recycle_when_empty: false       # true = recomeca a pasta quando acabar
+validate_media: true            # pula video fora do padrao de Reels
 
-# Tolerancia (minutos) do mode: now, caso o cron atrase
-now_tolerance_minutes: 45
+# ------------------------------------------------------------
+# Valores herdados por todas as paginas. Cada pagina pode sobrescrever.
+# ------------------------------------------------------------
+defaults:
+  post_type: reel               # reel | video
+  order: name                   # name | created | random_stable
+  times:
+    - "09:00"
+    - "13:00"
+    - "19:30"
 
-# Quando a pasta acabar: true = recomeca do inicio, false = para e avisa
-recycle_when_empty: false
-
-# Pula videos fora do padrao de Reels em vez de queimar o horario
-validate_media: true
-
+# ------------------------------------------------------------
+# Uma entrada por Pagina. page_id e source NAO sao segredos - podem ficar
+# aqui mesmo. So o token e sigiloso, e ele vem do FB_USER_TOKEN.
+# ------------------------------------------------------------
 pages:
   - name: "Daily Blessings"
-    page_id_env: PAGE1_ID          # secret com o ID da Pagina
-    token_env: PAGE1_TOKEN         # secret com o Page Access Token
-    timezone: America/New_York     # os horarios abaixo sao no fuso DESTA pagina
-
-    source:
-      type: rclone                 # rclone | gdrive
-      env: PAGE1_SOURCE            # secret com o caminho, ex: onedrive:Videos/Daily
-
-    post_type: reel
-    times:
-      - "09:00"
-      - "13:00"
-      - "19:30"
-
-    order: name                    # name | created | random_stable
+    page_id: "102725309222801"
+    timezone: America/New_York
+    source: "onedrive:Videos/Daily Blessings"
     default_caption: "Watch till the end"
     hashtags: "#faith #blessings #god"
 
-  # ---------------------------------------------------------------
-  # Cada pagina tem o proprio fuso: "19:00" de uma pagina do Mexico e
-  # 19:00 no Mexico, nao no Brasil. Duplique o bloco e ajuste.
-  #
-  # Fusos uteis: America/Sao_Paulo (BR), America/New_York (EUA leste),
-  # America/Los_Angeles (EUA oeste), America/Mexico_City (MX),
-  # Europe/Paris (FR), Europe/Lisbon (PT)
-  # ---------------------------------------------------------------
+  # ---- modelo para as proximas paginas ----
   # - name: "Bencaos Diarias"
-  #   page_id_env: PAGE2_ID
-  #   token_env: PAGE2_TOKEN
+  #   page_id: "1234567890"
   #   timezone: America/Sao_Paulo
-  #   source:
-  #     type: onedrive
-  #     env: PAGE2_SOURCE
-  #   post_type: reel
-  #   times: ["08:00", "12:30", "20:00"]
-  #   order: name
+  #   source: "onedrive:Videos/Bencaos"
+  #   times: ["08:00", "12:30", "20:00"]     # sobrescreve o padrao
   #   default_caption: "Assista ate o final"
   #   hashtags: "#fe #deus"
+  #
+  # - name: "Bendiciones"
+  #   page_id: "0987654321"
+  #   timezone: America/Mexico_City
+  #   source: "onedrive:Videos/Bendiciones"
+  #   default_caption: "Mira hasta el final"
+  #   hashtags: "#fe #dios"
+
+# Fusos uteis: America/Sao_Paulo (BR), America/New_York (EUA leste),
+# America/Los_Angeles (EUA oeste), America/Mexico_City (MX),
+# Europe/Paris (FR), Europe/Lisbon (PT)

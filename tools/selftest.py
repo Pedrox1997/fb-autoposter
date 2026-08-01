@@ -161,6 +161,54 @@ for i in range(600):
 state.prune_slots(recarregado, "p2", keep=500)
 check("prune limita o historico", len(recarregado["pages"]["p2"]["slots"]) == 500)
 
+print("\n[config com varias paginas]")
+YAML = """
+timezone: America/Sao_Paulo
+mode: schedule
+defaults:
+  post_type: reel
+  order: name
+  hashtags: "#padrao"
+  times: ["09:00", "19:00"]
+pages:
+  - name: "Pagina A"
+    page_id: "111"
+    token_env: TESTE_TOKEN_A
+    source: "onedrive:Videos/A"
+  - name: "Pagina B"
+    page_id: "222"
+    token_env: TESTE_TOKEN_B
+    source: "onedrive:Videos/B"
+    timezone: America/New_York
+    times: ["07:00"]
+    hashtags: "#proprio"
+  - name: "Pagina Sem Token"
+    page_id: "333"
+    source: "onedrive:Videos/C"
+"""
+cfg_path = os.path.join(tmp, "config_teste.yaml")
+with open(cfg_path, "w", encoding="utf-8") as f:
+    f.write(YAML)
+os.environ["TESTE_TOKEN_A"] = "tokA"
+os.environ["TESTE_TOKEN_B"] = "tokB"
+os.environ.pop("FB_USER_TOKEN", None)
+
+cfg = config.load(cfg_path)
+check("ignora pagina sem token", len(cfg.pages) == 2, f"veio {len(cfg.pages)}")
+a, b = cfg.pages
+check("page_id direto do YAML", a.page_id == "111")
+check("token vem do secret", a.token == "tokA")
+check("herda times do defaults", [t.hour for t in a.times] == [9, 19])
+check("herda hashtags do defaults", a.hashtags == "#padrao")
+check("pagina sobrescreve times", [t.hour for t in b.times] == [7])
+check("pagina sobrescreve hashtags", b.hashtags == "#proprio")
+check("herda post_type do defaults", a.post_type == "reel" and b.post_type == "reel")
+check("fuso proprio so na pagina B",
+      str(a.tz) == "America/Sao_Paulo" and str(b.tz) == "America/New_York")
+check("source string vira rclone", a.source_type == "rclone")
+check("source guarda o remote", a.source_ref == "onedrive:Videos/A")
+check("slug util para o estado", a.slug == "pagina-a")
+
 print("\n[secrets]")
 os.environ["ALL_SECRETS"] = '{"PAGE1_ID": "123", "PAGE1_TOKEN": "abc"}'
 config._bootstrap_secrets()
