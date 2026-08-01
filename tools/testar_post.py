@@ -15,6 +15,22 @@ from src import config, facebook, media, sources, state  # noqa: E402
 from src.sources.base import caption_for  # noqa: E402
 
 DRY_RUN = os.environ.get("DRY_RUN", "").strip().lower() in ("1", "true", "yes")
+ESCOLHA = os.environ.get("TESTE_ESCOLHA", "menor").strip().lower()
+NOME_ALVO = os.environ.get("TESTE_NOME", "").strip().lower()
+
+
+def _escolher(fila):
+    """menor (padrao, teste rapido) | maior | fila (ordem real) | por nome."""
+    if NOME_ALVO:
+        achados = [v for v in fila if NOME_ALVO in v.name.lower()]
+        if achados:
+            return achados[0]
+        print(f"  ! nenhum video com '{NOME_ALVO}' no nome; usando o criterio '{ESCOLHA}'")
+    if ESCOLHA == "maior":
+        return sorted(fila, key=lambda v: v.size or 0)[-1]
+    if ESCOLHA == "fila":
+        return fila[0]
+    return sorted(fila, key=lambda v: v.size or 0)[0]
 
 
 def main():
@@ -51,12 +67,13 @@ def main():
         print("[ERRO] todos os videos ja foram usados")
         return 1
 
-    # o menor primeiro: teste mais rapido
-    item = sorted(fila, key=lambda v: v.size or 0)[0]
+    item = _escolher(fila)
     print(f"\nEscolhido: {item.name} ({(item.size or 0) / 1e6:.1f} MB)")
 
+    comeco = datetime.now()
     caminho = src.download(item)
-    print(f"[ok] baixado")
+    baixou_em = (datetime.now() - comeco).total_seconds()
+    print(f"[ok] baixado em {baixou_em:.0f}s")
 
     erros, avisos = media.check(caminho, page.post_type)
     for a in avisos:
@@ -73,10 +90,15 @@ def main():
         return 0
 
     print("\nPublicando agora...")
+    envio = datetime.now()
     post_id = facebook.publish(page, caminho, legenda, None)
+    subiu_em = (datetime.now() - envio).total_seconds()
 
     print(f"\n[ok] PUBLICADO | id={post_id}")
     print(f"     https://www.facebook.com/{post_id}")
+    print(f"\nTempos: download {baixou_em:.0f}s | upload {subiu_em:.0f}s | "
+          f"total {(datetime.now() - comeco).total_seconds():.0f}s "
+          f"para {(item.size or 0) / 1e6:.1f} MB")
 
     state.record(st, page.slug, f"teste-{datetime.now():%Y%m%dT%H%M%S}",
                  item.id, item.name, post_id, datetime.now().isoformat())

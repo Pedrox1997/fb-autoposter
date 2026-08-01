@@ -17,6 +17,15 @@ on:
         description: "Publicar UM video agora (teste de ponta a ponta)"
         type: boolean
         default: false
+      teste_escolha:
+        description: "Qual video usar no teste"
+        type: choice
+        options: [menor, maior, fila]
+        default: menor
+      teste_nome:
+        description: "Teste: trecho do nome do video (opcional)"
+        type: string
+        default: ""
 
 # Nunca dois runs ao mesmo tempo: evita post duplicado e conflito no state.
 concurrency:
@@ -57,6 +66,8 @@ jobs:
         env:
           ALL_SECRETS: ${{ toJSON(secrets) }}
           DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+          TESTE_ESCOLHA: ${{ inputs.teste_escolha }}
+          TESTE_NOME: ${{ inputs.teste_nome }}
         run: |
           if [ "${{ inputs.teste_um_video }}" = "true" ]; then
             python -m tools.testar_post

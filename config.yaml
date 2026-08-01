@@ -42,7 +42,8 @@ pages:
     token_env: PAGE1_TOKEN       # enquanto o FB_USER_TOKEN nao esta cadastrado
     timezone: America/New_York
     source: "onedrive:PAGINAS FACEBOOK ( arquivo videos 00)/BAIXADOS DAS PAGINAS/REDE 1- IRÔNICA/R1 - Inglês"
-    default_caption: "Watch till the end"
+    # sem default_caption: a legenda vira o proprio nome do arquivo,
+    # que ja e o gancho do video
     hashtags: ""
 
   # ---- modelo para as proximas paginas ----
