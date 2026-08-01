@@ -13,7 +13,7 @@ sys.path.insert(0, __file__.rsplit("tools", 1)[0])
 from src import config, state  # noqa: E402
 from src.sources import base  # noqa: E402
 from src.sources.gdrive import folder_id_from  # noqa: E402
-from src.sources.rclone import RcloneSource  # noqa: E402
+from src.sources.rclone import RcloneSource, descartavel  # noqa: E402
 
 TZ = ZoneInfo("America/Sao_Paulo")
 falhas = []
@@ -113,6 +113,15 @@ try:
     check("recusa caminho sem remote", False, "aceitou caminho invalido")
 except ValueError:
     check("recusa caminho sem remote", True)
+
+print("\n[lixo de sincronizacao do OneDrive]")
+check("descarta ~tmp", descartavel("~tmp77_1 A minha mae forjou.mp4"))
+check("descarta ~$", descartavel("~$video.mp4"))
+check("descarta .partial", descartavel("video.mp4.partial"))
+check("descarta ._ do mac", descartavel("._video.mp4"))
+check("mantem video real", not descartavel("1 A minha mae forjou.mp4"))
+check("mantem nome com til no meio", not descartavel("video~2.mp4"))
+check("mantem nome com emoji", not descartavel("2 dias antes 💔😱.mp4"))
 
 print("\n[legendas]")
 item = base.Item(id="1", name="historia_da_vovo.mp4")

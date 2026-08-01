@@ -15,6 +15,17 @@ import subprocess
 from .base import Item, local_path, sort_items, ROOT
 
 VIDEO_EXT = (".mp4", ".mov", ".m4v", ".webm", ".avi", ".mkv")
+
+# Lixo de sincronizacao do OneDrive/Office: sao copias dos videos reais e
+# fariam o robo postar o mesmo conteudo duas vezes.
+PREFIXOS_TEMPORARIOS = ("~tmp", "~$", ".~", "._")
+SUFIXOS_TEMPORARIOS = (".partial", ".tmp", ".crdownload", ".download")
+
+
+def descartavel(nome):
+    baixo = nome.lower()
+    return (baixo.startswith(PREFIXOS_TEMPORARIOS)
+            or baixo.endswith(SUFIXOS_TEMPORARIOS))
 CONF_PATH = os.path.join(ROOT, "rclone.conf")
 TIMEOUT_LIST = 300
 TIMEOUT_DOWNLOAD = 3600
@@ -83,6 +94,13 @@ class RcloneSource:
         return self._cache
 
     def list_videos(self):
+        brutos = [f for f in self._entries() if f["Name"].lower().endswith(VIDEO_EXT)]
+        validos = [f for f in brutos if not descartavel(f["Name"])]
+
+        descartados = len(brutos) - len(validos)
+        if descartados:
+            print(f"    {descartados} arquivo(s) temporario(s) do OneDrive ignorado(s)")
+
         itens = [
             Item(
                 id=f.get("ID") or f["Path"],
@@ -91,8 +109,7 @@ class RcloneSource:
                 created=f.get("ModTime", ""),
                 extra={"path": f["Path"]},
             )
-            for f in self._entries()
-            if f["Name"].lower().endswith(VIDEO_EXT)
+            for f in validos
         ]
         return sort_items(itens, self.order)
 
