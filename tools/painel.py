@@ -47,7 +47,7 @@ FUSOS = [
 
 # --------------------------------------------------------------- utilidades
 
-SLOTS_TOKEN = ["FB_USER_TOKEN", "FB_USER_TOKEN_2"]
+MAX_PERFIS = 20
 
 # Login do Facebook: o usuario autoriza numa tela e o painel recebe o token,
 # em vez de ele copiar do Graph API Explorer na mao.
@@ -119,12 +119,41 @@ def token_usuario(slot="FB_USER_TOKEN"):
     return os.environ.get(slot, "").strip()
 
 
-def tokens_presentes():
-    return {slot: bool(token_usuario(slot)) for slot in SLOTS_TOKEN}
+def slots_usados():
+    config._carregar_env_local()
+    return config.slots_de_token()
+
+
+def proximo_slot():
+    """Primeiro nome livre da sequencia FB_USER_TOKEN, _2, _3..."""
+    usados = set(slots_usados())
+    if "FB_USER_TOKEN" not in usados:
+        return "FB_USER_TOKEN"
+    for n in range(2, MAX_PERFIS + 1):
+        if f"FB_USER_TOKEN_{n}" not in usados:
+            return f"FB_USER_TOKEN_{n}"
+    return None
+
+
+def perfis_conectados():
+    """Cada perfil com o nome da conta e quantas paginas ele traz."""
+    saida = []
+    for slot in slots_usados():
+        item = {"slot": slot, "nome": "?", "paginas": 0, "erro": None}
+        try:
+            import requests
+            eu = requests.get(f"{facebook.GRAPH}/me", timeout=30,
+                              params={"fields": "name", "access_token": token_usuario(slot)})
+            item["nome"] = eu.json().get("name", "?") if eu.status_code < 400 else "?"
+            item["paginas"] = len(facebook.page_tokens(token_usuario(slot), cache_key=slot))
+        except Exception as e:
+            item["erro"] = str(e)[:160]
+        saida.append(item)
+    return saida
 
 
 def salvar_token(valor, slot="FB_USER_TOKEN"):
-    if slot not in SLOTS_TOKEN:
+    if not re.fullmatch(r"FB_USER_TOKEN(_\d+)?", slot or ""):
         slot = "FB_USER_TOKEN"
     linhas = []
     if os.path.exists(ENV_LOCAL):
@@ -152,14 +181,12 @@ def _mandar_secret(nome, valor):
 
 
 def listar_paginas():
-    """Junta as paginas de todos os perfis cujo token esteja cadastrado."""
+    """Junta as paginas de todos os perfis conectados, sem repetir."""
     mapa, erros = {}, []
-    for slot in SLOTS_TOKEN:
-        token = token_usuario(slot)
-        if not token:
-            continue
+    for slot in slots_usados():
         try:
-            mapa.update(facebook.page_tokens(token, cache_key=slot))
+            for pid, dados in facebook.page_tokens(token_usuario(slot), cache_key=slot).items():
+                mapa.setdefault(pid, {**dados, "slot": slot})
         except Exception as e:
             erros.append(f"{slot}: {e}")
 
@@ -167,8 +194,8 @@ def listar_paginas():
         return {"erro": "sem_token", "paginas": []}
     return {
         "erro": " | ".join(erros) if erros else None,
-        "paginas": [{"id": pid, "nome": d["name"]} for pid, d in sorted(
-            mapa.items(), key=lambda kv: kv[1]["name"].lower())],
+        "paginas": [{"id": pid, "nome": d["name"], "perfil": d.get("slot")}
+                    for pid, d in sorted(mapa.items(), key=lambda kv: kv[1]["name"].lower())],
     }
 
 
@@ -286,8 +313,9 @@ class Painel(BaseHTTPRequestHandler):
 
         if rota.path == "/api/estado":
             return self._responder({
-                "tem_token": any(tokens_presentes().values()),
-                "tokens": tokens_presentes(),
+                "tem_token": bool(slots_usados()),
+                "perfis": perfis_conectados(),
+                "proximo_slot": proximo_slot(),
                 "app_ok": app_configurado(),
                 "redirect_uri": REDIRECT_URI,
                 "tem_rclone": bool(_rclone_ok()),
@@ -299,7 +327,7 @@ class Painel(BaseHTTPRequestHandler):
             return self._responder(listar_paginas())
 
         if rota.path == "/oauth/entrar":
-            slot = query.get("slot", ["FB_USER_TOKEN"])[0]
+            slot = query.get("slot", [""])[0] or proximo_slot()
             destino = url_login(slot)
             if not destino:
                 return self._responder({"erro": "app nao configurado"}, 400)

@@ -92,13 +92,14 @@
     <p class="dica" id="estadoTokens"></p>
 
     <div id="comApp" hidden>
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button onclick="entrarFB('FB_USER_TOKEN')">+ Perfil 1</button>
-        <button class="sec" onclick="entrarFB('FB_USER_TOKEN_2')">+ Perfil 2</button>
+      <div id="listaPerfis"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+        <button onclick="entrarFB()">+ Conectar perfil</button>
         <button class="sec" onclick="verManual()">Colar token na mão</button>
       </div>
       <p class="dica" style="margin-top:10px">Abre a tela do Facebook; você autoriza e
-         escolhe as páginas. O token vem sozinho para cá.</p>
+         escolhe as páginas. Pode conectar quantos perfis quiser — as páginas de
+         todos aparecem juntas na lista abaixo.</p>
     </div>
 
     <div id="semApp">
@@ -119,11 +120,8 @@
     <div id="manual" hidden style="margin-top:16px;padding-top:16px;border-top:1px dashed var(--linha)">
       <div class="grade">
         <div>
-          <label>Perfil</label>
-          <select id="slot">
-            <option value="FB_USER_TOKEN">Perfil 1</option>
-            <option value="FB_USER_TOKEN_2">Perfil 2</option>
-          </select>
+          <label>Guardar como</label>
+          <select id="slot"></select>
         </div>
         <div><label>Token de longa duração</label>
              <input id="token" type="password" placeholder="EAAT5..."></div>
@@ -180,10 +178,26 @@ async function iniciar(){
   document.getElementById("status").innerHTML =
     `<span class="chip ${estado.tem_token?"ok":"nao"}">token do Facebook ${estado.tem_token?"ok":"faltando"}</span>
      <span class="chip ${estado.tem_rclone?"ok":"nao"}">rclone ${estado.tem_rclone?"ok":"faltando"}</span>`;
-  const t = estado.tokens || {};
-  document.getElementById("estadoTokens").textContent =
-    "Perfil 1: " + (t.FB_USER_TOKEN ? "conectado" : "não conectado")
-    + " · Perfil 2: " + (t.FB_USER_TOKEN_2 ? "conectado" : "não usado");
+  const perfis = estado.perfis || [];
+  document.getElementById("estadoTokens").textContent = perfis.length
+    ? `${perfis.length} perfil(is) conectado(s)`
+    : "Nenhum perfil conectado ainda.";
+  document.getElementById("listaPerfis").innerHTML = perfis.map(p => `
+    <div class="item" style="cursor:default">
+      <span style="flex:1">👤 <b>${escapar(p.nome)}</b>
+        <span class="id">${escapar(p.slot)}</span></span>
+      <span class="dica" style="margin:0">${p.erro ? "erro: " + escapar(p.erro)
+                                                   : p.paginas + " página(s)"}</span>
+    </div>`).join("");
+
+  const sel = document.getElementById("slot");
+  if(sel){
+    const opcoes = perfis.map(p => p.slot);
+    if(estado.proximo_slot) opcoes.push(estado.proximo_slot);
+    sel.innerHTML = opcoes.map((s,i) =>
+      `<option value="${s}">Perfil ${i+1}${i===opcoes.length-1 && estado.proximo_slot===s
+        ? " (novo)" : ""}</option>`).join("");
+  }
   document.getElementById("comApp").hidden = !estado.app_ok;
   document.getElementById("semApp").hidden = !!estado.app_ok;
   document.getElementById("redirectUri").textContent = estado.redirect_uri || "";
@@ -399,7 +413,7 @@ async function publicar(){
   msg(r.ok ? r.mensagem : "Erro: " + r.erro, r.ok ? "var(--verde)" : "var(--erro)");
 }
 
-const entrarFB = slot => location.href = "/oauth/entrar?slot=" + slot;
+const entrarFB = slot => location.href = "/oauth/entrar" + (slot ? "?slot=" + slot : "");
 const verManual = () => document.getElementById("manual").hidden = false;
 
 async function salvarApp(){

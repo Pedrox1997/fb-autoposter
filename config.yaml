@@ -6,12 +6,11 @@
 # Fuso padrao, usado por paginas que nao definirem o proprio.
 timezone: America/Sao_Paulo
 
-# Secret(s) com o token de USUARIO de longa duracao. Com ele o robo descobre
-# sozinho o token de cada Pagina - assim voce nao cadastra um secret por pagina.
-# Paginas em perfis diferentes do Facebook: liste um secret por perfil.
-facebook_user_token_env:
-  - FB_USER_TOKEN
-  - FB_USER_TOKEN_2
+# Tokens de USUARIO de longa duracao: com eles o robo descobre sozinho o token
+# de cada Pagina, entao nao existe um secret por pagina.
+# Sem esta chave, o robo usa automaticamente toda variavel FB_USER_TOKEN,
+# FB_USER_TOKEN_2, FB_USER_TOKEN_3... que existir - um perfil por token.
+# facebook_user_token_env: [FB_USER_TOKEN, FB_USER_TOKEN_2]
 
 # schedule = sobe o video e o FACEBOOK publica na hora exata (recomendado)
 # now      = publica no momento em que o workflow rodar

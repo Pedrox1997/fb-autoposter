@@ -1,6 +1,7 @@
 """Leitura do config.yaml + resolucao dos segredos vindos do ambiente."""
 import json
 import os
+import re
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, time as dtime, timedelta
@@ -78,6 +79,18 @@ def _carregar_env_local():
                 os.environ[chave] = valor
 
 
+def slots_de_token():
+    """Nomes das variaveis de token de usuario presentes, em ordem estavel:
+    FB_USER_TOKEN, FB_USER_TOKEN_2, FB_USER_TOKEN_3..."""
+    def ordem(nome):
+        sufixo = nome.rsplit("_", 1)[-1]
+        return int(sufixo) if sufixo.isdigit() else 1
+
+    achados = [n for n in os.environ
+               if re.fullmatch(r"FB_USER_TOKEN(_\d+)?", n) and os.environ[n].strip()]
+    return sorted(achados, key=ordem)
+
+
 def _bootstrap_secrets():
     """O workflow injeta todas as GitHub Secrets em ALL_SECRETS. Assim, adicionar
     uma pagina nova exige mexer so no config.yaml, nunca no YAML do workflow."""
@@ -105,11 +118,15 @@ def load(path=None):
     pages = []
 
     # Um token de usuario entrega o token de todas as Paginas que ele administra.
-    # Aceita varios: paginas espalhadas em perfis diferentes do Facebook exigem
-    # um token por perfil, e os mapas sao somados.
-    nomes_tokens = raw.get("facebook_user_token_env", "FB_USER_TOKEN")
+    # Paginas espalhadas por varios perfis exigem um token por perfil, e os
+    # mapas sao somados. Sem configuracao explicita, usa toda variavel
+    # FB_USER_TOKEN* que existir - assim conectar um perfil novo no painel nao
+    # obriga a mexer no config.
+    nomes_tokens = raw.get("facebook_user_token_env")
     if isinstance(nomes_tokens, str):
         nomes_tokens = [nomes_tokens]
+    if not nomes_tokens:
+        nomes_tokens = slots_de_token()
 
     tokens_das_paginas = {}
     for nome_secret in nomes_tokens:
