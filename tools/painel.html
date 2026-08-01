@@ -6,141 +6,242 @@
 <title>Postador — Painel</title>
 <style>
   :root{
-    --bg:#f6f7f9; --card:#fff; --linha:#e3e6ea; --txt:#1a1d21; --fraco:#6b7280;
-    --azul:#1877f2; --azul-esc:#145dbf; --verde:#0e8a4f; --erro:#c0392b; --aviso:#8a6d0e;
-    --aviso-bg:#fff8e1; --radius:10px;
+    --fundo:#f4f6fa; --card:#fff; --linha:#e5e9f0; --txt:#131722; --fraco:#6b7484;
+    --acento:#3b5bfd; --acento2:#7b3bfd; --verde:#0f9d58; --amarelo:#c98a00;
+    --erro:#d93025; --lateral:#141a2e; --lateral2:#1b2340; --r:14px;
   }
   @media (prefers-color-scheme: dark){
-    :root{ --bg:#15171a; --card:#1e2126; --linha:#2f343b; --txt:#e8eaed; --fraco:#9aa3ad;
-           --aviso-bg:#2b2612; --aviso:#e3c05a; }
+    :root{ --fundo:#0f1219; --card:#171c26; --linha:#252c3a; --txt:#e9edf5; --fraco:#98a1b3; }
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--txt);
-       font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:88px}
-  header{background:var(--card);border-bottom:1px solid var(--linha);padding:16px 20px;
-         position:sticky;top:0;z-index:20}
-  header h1{margin:0;font-size:18px}
-  .status{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-  .chip{font-size:12px;padding:3px 10px;border-radius:999px;border:1px solid var(--linha)}
-  .chip.ok{color:var(--verde);border-color:var(--verde)}
-  .chip.nao{color:var(--erro);border-color:var(--erro)}
-  main{max-width:900px;margin:0 auto;padding:20px}
-  .card{background:var(--card);border:1px solid var(--linha);border-radius:var(--radius);
-        padding:18px;margin-bottom:16px}
-  .card h2{margin:0 0 4px;font-size:16px}
-  .dica{color:var(--fraco);font-size:13px;margin:0 0 14px}
-  label{display:block;font-size:13px;color:var(--fraco);margin:12px 0 4px}
-  input,select{width:100%;padding:9px 11px;border:1px solid var(--linha);border-radius:8px;
-               background:var(--bg);color:var(--txt);font-size:14px}
-  button{padding:9px 16px;border:0;border-radius:8px;background:var(--azul);color:#fff;
+  body{margin:0;background:var(--fundo);color:var(--txt);
+       font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+       display:grid;grid-template-columns:250px 1fr;min-height:100vh}
+
+  /* ---------- lateral ---------- */
+  aside{background:var(--lateral);color:#cdd4e4;padding:22px 14px;position:sticky;top:0;
+        height:100vh;overflow:auto}
+  .marca{display:flex;align-items:center;gap:10px;padding:0 8px 20px}
+  .logo{width:34px;height:34px;border-radius:9px;flex:0 0 auto;
+        background:linear-gradient(135deg,var(--acento),var(--acento2));
+        display:grid;place-items:center;color:#fff;font-weight:700}
+  .marca b{font-size:15px;color:#fff}
+  aside .grupo{font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+               color:#6b7593;margin:18px 10px 8px}
+  nav a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;
+        color:#cdd4e4;text-decoration:none;font-size:14px;cursor:pointer}
+  nav a:hover{background:var(--lateral2)}
+  nav a.on{background:linear-gradient(135deg,var(--acento),var(--acento2));color:#fff;font-weight:600}
+
+  /* ---------- conteudo ---------- */
+  main{padding:26px 30px 60px;max-width:1180px}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--fraco);margin:0 0 22px;font-size:14px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;
+         margin-bottom:22px}
+  .box{background:var(--card);border:1px solid var(--linha);border-radius:var(--r);padding:18px}
+  .rotulo{color:var(--fraco);font-size:13px;display:flex;align-items:center;gap:8px}
+  .numero{font-size:28px;font-weight:700;margin-top:6px;line-height:1.1}
+  .icone{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:16px}
+  .barra{height:6px;border-radius:99px;background:var(--linha);margin-top:12px;overflow:hidden}
+  .barra i{display:block;height:100%;border-radius:99px;
+           background:linear-gradient(90deg,var(--acento),var(--acento2))}
+  .pill{font-size:12px;padding:3px 9px;border-radius:99px;border:1px solid var(--linha);
+        color:var(--fraco)}
+  .pill.ok{color:var(--verde);border-color:var(--verde)}
+  .pill.mal{color:var(--erro);border-color:var(--erro)}
+  .pill.aten{color:var(--amarelo);border-color:var(--amarelo)}
+
+  .duas{display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start}
+  @media(max-width:1000px){ .duas{grid-template-columns:1fr} body{grid-template-columns:1fr}
+    aside{position:static;height:auto} }
+
+  h2{font-size:16px;margin:0 0 14px;display:flex;align-items:center;gap:8px}
+  h2 .pill{margin-left:auto}
+  .linha{display:flex;align-items:center;gap:12px;padding:11px 0;
+         border-bottom:1px solid var(--linha)}
+  .linha:last-child{border:0}
+  .quando{font-variant-numeric:tabular-nums;font-size:13px;color:var(--fraco);
+          min-width:96px;flex:0 0 auto}
+  .nome{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+  .acoes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  button{padding:10px 14px;border:0;border-radius:10px;background:var(--acento);color:#fff;
          font-size:14px;font-weight:600;cursor:pointer}
-  button:hover{background:var(--azul-esc)}
+  button:hover{filter:brightness(1.08)}
   button.sec{background:transparent;color:var(--txt);border:1px solid var(--linha)}
-  button.sec:hover{background:var(--bg)}
-  button:disabled{opacity:.5;cursor:not-allowed}
-  .aviso{background:var(--aviso-bg);border:1px solid var(--aviso);color:var(--aviso);
-         padding:12px 14px;border-radius:8px;font-size:13px;margin-bottom:16px}
-  .pagina{border:1px solid var(--linha);border-radius:var(--radius);padding:14px;margin-bottom:12px}
-  .pagina.on{border-color:var(--azul);box-shadow:0 0 0 1px var(--azul)}
+  button.sec:hover{background:var(--fundo)}
+  label{display:block;font-size:13px;color:var(--fraco);margin:12px 0 4px}
+  input,select{width:100%;padding:9px 11px;border:1px solid var(--linha);border-radius:9px;
+               background:var(--fundo);color:var(--txt);font-size:14px}
+  .aviso{background:#fff8e1;border:1px solid var(--amarelo);color:#7a5900;padding:12px 14px;
+         border-radius:10px;font-size:13px;margin-bottom:16px}
+  @media (prefers-color-scheme: dark){ .aviso{background:#2a2411;color:#e8c766} }
+  .pagina{border:1px solid var(--linha);border-radius:var(--r);padding:15px;margin-bottom:12px}
+  .pagina.on{border-color:var(--acento)}
   .topo{display:flex;align-items:center;gap:10px}
   .topo input[type=checkbox]{width:18px;height:18px;flex:0 0 auto;margin:0}
   .topo b{flex:1}
   .id{font-size:12px;color:var(--fraco);font-family:ui-monospace,monospace}
   .corpo{margin-top:14px;padding-top:14px;border-top:1px dashed var(--linha)}
   .grade{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  @media(max-width:640px){ .grade{grid-template-columns:1fr} }
+  @media(max-width:640px){ .grade{grid-template-columns:1fr} .acoes{grid-template-columns:1fr} }
   .horarios{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-  .hora{background:var(--bg);border:1px solid var(--linha);border-radius:999px;
+  .hora{background:var(--fundo);border:1px solid var(--linha);border-radius:99px;
         padding:4px 8px 4px 12px;font-size:13px;display:flex;align-items:center;gap:6px}
   .hora button{background:transparent;color:var(--fraco);padding:0 4px;font-size:16px;line-height:1}
-  .hora button:hover{color:var(--erro);background:transparent}
-  .pasta{display:flex;gap:8px;align-items:center}
-  .pasta input{font-family:ui-monospace,monospace;font-size:13px}
+  .pasta{display:flex;gap:8px}
+  .pasta input{font-family:ui-monospace,monospace;font-size:12.5px}
   .conta{font-size:12px;color:var(--fraco);margin-top:6px;min-height:18px}
-  .barra{position:fixed;bottom:0;left:0;right:0;background:var(--card);
-         border-top:1px solid var(--linha);padding:14px 20px;display:flex;gap:10px;
-         justify-content:flex-end;align-items:center;z-index:20}
-  .barra .msg{margin-right:auto;font-size:13px;color:var(--fraco)}
-  dialog{border:1px solid var(--linha);border-radius:var(--radius);background:var(--card);
-         color:var(--txt);max-width:560px;width:92%;padding:0}
-  dialog::backdrop{background:rgba(0,0,0,.5)}
-  .dlg-topo{padding:14px 18px;border-bottom:1px solid var(--linha);display:flex;
-            align-items:center;gap:10px}
-  .dlg-corpo{padding:8px 18px;max-height:50vh;overflow:auto}
+  .barrafixa{position:fixed;bottom:0;left:250px;right:0;background:var(--card);
+             border-top:1px solid var(--linha);padding:13px 30px;display:flex;gap:10px;
+             justify-content:flex-end;align-items:center;z-index:20}
+  @media(max-width:1000px){ .barrafixa{left:0} }
+  .barrafixa .msg{margin-right:auto;font-size:13px;color:var(--fraco)}
+  dialog{border:1px solid var(--linha);border-radius:var(--r);background:var(--card);
+         color:var(--txt);max-width:600px;width:92%;padding:0}
+  dialog::backdrop{background:rgba(0,0,0,.55)}
+  .dlg-topo{padding:15px 18px;border-bottom:1px solid var(--linha);display:flex;gap:10px}
+  .dlg-corpo{padding:8px 18px;max-height:52vh;overflow:auto}
   .dlg-base{padding:14px 18px;border-top:1px solid var(--linha);display:flex;gap:8px;
             justify-content:flex-end}
-  .item{padding:9px 10px;border-radius:8px;cursor:pointer;display:flex;gap:8px}
-  .item:hover{background:var(--bg)}
-  .caminho{font-family:ui-monospace,monospace;font-size:12px;color:var(--fraco);
-           word-break:break-all;padding:8px 18px}
-  pre{background:var(--bg);border:1px solid var(--linha);border-radius:8px;padding:12px;
+  .item{padding:9px 10px;border-radius:9px;cursor:pointer;display:flex;gap:8px}
+  .item:hover{background:var(--fundo)}
+  .caminho{font-size:12.5px;padding:9px 18px;color:var(--fraco);word-break:break-all}
+  .caminho a{color:var(--acento);text-decoration:none}
+  pre{background:var(--fundo);border:1px solid var(--linha);border-radius:9px;padding:12px;
       font-size:12px;overflow:auto;max-height:340px;white-space:pre-wrap}
+  .vazio{color:var(--fraco);font-size:13.5px;padding:10px 0}
 </style>
 </head>
 <body>
 
-<header>
-  <h1>Postador automático — configuração</h1>
-  <div class="status" id="status"></div>
-</header>
+<aside>
+  <div class="marca"><div class="logo">P</div><b>Postador</b></div>
+  <div class="grupo">Acompanhar</div>
+  <nav>
+    <a class="on" data-tela="inicio">📊 Painel</a>
+    <a data-tela="fila">🗓️ Fila de posts</a>
+  </nav>
+  <div class="grupo">Configurar</div>
+  <nav>
+    <a data-tela="paginas">📄 Páginas</a>
+    <a data-tela="perfis">👤 Perfis</a>
+    <a data-tela="nuvem">☁️ Contas de nuvem</a>
+  </nav>
+</aside>
 
 <main>
-  <div id="alerta"></div>
+  <div id="tela-inicio">
+    <h1>Painel</h1>
+    <p class="sub" id="saudacao">Veja o que o robô está fazendo.</p>
 
-  <div class="card">
-    <h2>Perfis do Facebook</h2>
-    <p class="dica" id="estadoTokens"></p>
+    <div class="cards" id="resumo"></div>
 
-    <div id="comApp" hidden>
-      <div id="listaPerfis"></div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
-        <button onclick="entrarFB()">+ Conectar perfil</button>
-        <button class="sec" onclick="verManual()">Colar token na mão</button>
+    <div class="duas">
+      <div class="box">
+        <h2>Estoque de vídeos <span class="pill" id="pillEstoque">carregando…</span></h2>
+        <div id="estoque"><p class="vazio">consultando as pastas…</p></div>
       </div>
-      <p class="dica" style="margin-top:10px">Abre a tela do Facebook; você autoriza e
-         escolhe as páginas. Pode conectar quantos perfis quiser — as páginas de
-         todos aparecem juntas na lista abaixo.</p>
-    </div>
-
-    <div id="semApp">
-      <p class="dica">Para o botão "+ Perfil" funcionar, informe os dados do seu app
-         (developers.facebook.com → seu app → <b>Configurações → Básico</b>).</p>
-      <div class="grade">
-        <div><label>ID do aplicativo</label><input id="appId" placeholder="1399856292211648"></div>
-        <div><label>Chave secreta do app</label><input id="appSecret" type="password"></div>
-      </div>
-      <div class="aviso" style="margin-top:12px">
-        No app, vá em <b>Login do Facebook → Configurações</b> e adicione este endereço em
-        "URIs de redirecionamento do OAuth válidos":<br>
-        <code id="redirectUri"></code>
-      </div>
-      <button onclick="salvarApp()">Salvar dados do app</button>
-    </div>
-
-    <div id="manual" hidden style="margin-top:16px;padding-top:16px;border-top:1px dashed var(--linha)">
-      <div class="grade">
-        <div>
-          <label>Guardar como</label>
-          <select id="slot"></select>
+      <div class="box">
+        <h2>Ações rápidas</h2>
+        <div class="acoes">
+          <button onclick="rodar(false)">▶ Rodar agora</button>
+          <button class="sec" onclick="rodar(true)">🎬 Testar 1 vídeo</button>
+          <button class="sec" onclick="abrirActions()">📜 Ver execuções</button>
+          <button class="sec" onclick="ir('paginas')">⚙️ Configurar</button>
         </div>
-        <div><label>Token de longa duração</label>
-             <input id="token" type="password" placeholder="EAAT5..."></div>
+        <p class="vazio">"Rodar agora" manda o robô trabalhar imediatamente,
+           sem esperar o horário.</p>
       </div>
-      <div style="margin-top:12px"><button onclick="salvarToken()">Salvar token</button></div>
     </div>
   </div>
 
-  <div class="card">
-    <h2>Suas páginas</h2>
-    <p class="dica">Marque as que o robô deve alimentar e configure pasta, fuso e horários de cada uma.</p>
-    <input id="busca" placeholder="Filtrar por nome..." oninput="desenhar()" style="margin-bottom:14px">
-    <div id="paginas"></div>
+  <div id="tela-fila" hidden>
+    <h1>Fila de posts</h1>
+    <p class="sub">O que já está agendado no Facebook e os próximos horários livres.</p>
+    <div class="duas">
+      <div class="box">
+        <h2>Agendados <span class="pill" id="pillAgendados">–</span></h2>
+        <div id="agendados"></div>
+      </div>
+      <div class="box">
+        <h2>Próximos horários</h2>
+        <div id="previstos"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tela-paginas" hidden>
+    <h1>Páginas</h1>
+    <p class="sub">Marque as que o robô deve alimentar e configure pasta, fuso e horários.</p>
+    <div id="alerta"></div>
+    <div class="box">
+      <input id="busca" placeholder="Filtrar por nome..." oninput="desenhar()"
+             style="margin-bottom:14px">
+      <div id="paginas"></div>
+    </div>
+  </div>
+
+  <div id="tela-nuvem" hidden>
+    <h1>Contas de nuvem</h1>
+    <p class="sub">De onde o robô puxa os vídeos. Pode conectar mais de uma conta do
+       OneDrive e escolher, em cada página, de qual delas vem o conteúdo.</p>
+    <div class="box">
+      <h2>Contas conectadas <span class="pill" id="pillNuvem">–</span></h2>
+      <div id="listaRemotes"></div>
+      <div style="display:flex;gap:10px;margin-top:14px;align-items:center">
+        <button onclick="conectarNuvem()" id="btnNuvem">+ Conectar OneDrive</button>
+        <span class="rotulo" id="estadoNuvem"></span>
+      </div>
+      <p class="vazio">Abre a janela da Microsoft para você entrar na conta e autorizar.
+         Depois de conectar, a configuração é enviada ao robô automaticamente.</p>
+    </div>
+  </div>
+
+  <div id="tela-perfis" hidden>
+    <h1>Perfis do Facebook</h1>
+    <p class="sub" id="estadoTokens"></p>
+    <div class="box">
+      <div id="comApp" hidden>
+        <div id="listaPerfis"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+          <button onclick="entrarFB()">+ Conectar perfil</button>
+          <button class="sec" onclick="verManual()">Colar token na mão</button>
+        </div>
+        <p class="vazio">Cada perfil conectado traz as páginas que ele administra.
+           Pode conectar quantos quiser.</p>
+      </div>
+
+      <div id="semApp">
+        <p class="vazio">Para conectar por login, informe os dados do app
+           (developers.facebook.com → seu app → <b>Configurações → Básico</b>).</p>
+        <div class="grade">
+          <div><label>ID do aplicativo</label><input id="appId" placeholder="1399856292211648"></div>
+          <div><label>Chave secreta</label><input id="appSecret" type="password"></div>
+        </div>
+        <div class="aviso" style="margin-top:12px">
+          No app, em <b>Login do Facebook → Configurações</b>, adicione em
+          "URIs de redirecionamento do OAuth válidos":<br><code id="redirectUri"></code>
+        </div>
+        <button onclick="salvarApp()">Salvar dados do app</button>
+      </div>
+
+      <div id="manual" hidden style="margin-top:16px;padding-top:16px;
+           border-top:1px dashed var(--linha)">
+        <div class="grade">
+          <div><label>Guardar como</label><select id="slot"></select></div>
+          <div><label>Token de longa duração</label>
+               <input id="token" type="password" placeholder="EAAT5..."></div>
+        </div>
+        <div style="margin-top:12px"><button onclick="salvarToken()">Salvar token</button></div>
+      </div>
+    </div>
   </div>
 </main>
 
-<div class="barra">
+<div class="barrafixa">
   <span class="msg" id="msg"></span>
-  <button class="sec" onclick="salvar()">Salvar no computador</button>
+  <button class="sec" onclick="salvar()">Salvar</button>
   <button onclick="publicar()">Salvar e enviar para o robô</button>
 </div>
 
@@ -150,7 +251,7 @@
   <div class="caminho" id="dlgCaminho"></div>
   <div class="dlg-corpo" id="dlgLista"></div>
   <div class="dlg-base">
-    <button class="sec" onclick="irRaiz()">Início</button>
+    <select id="remotes" style="width:auto;margin-right:auto" onchange="trocarRemote(this.value)"></select>
     <button class="sec" onclick="subir()">Voltar</button>
     <button onclick="usarPasta()">Usar esta pasta</button>
   </div>
@@ -163,281 +264,345 @@
 </dialog>
 
 <script>
-let estado = {fusos:[], config:{}}, paginas = [], conf = {}, atual = null, caminhoAtual = "onedrive:";
+let estado={}, paginas=[], conf={}, atual=null, caminhoAtual="onedrive:";
 
 const api = async (rota, dados) => {
-  const opc = dados ? {method:"POST", headers:{"Content-Type":"application/json"},
+  const opc = dados ? {method:"POST",headers:{"Content-Type":"application/json"},
                        body:JSON.stringify(dados)} : {};
   return (await fetch(rota, opc)).json();
 };
-const msg = (t, cor) => { const e = document.getElementById("msg");
-  e.textContent = t; e.style.color = cor || "var(--fraco)"; };
+const msg = (t,cor) => { const e=document.getElementById("msg");
+  e.textContent=t; e.style.color=cor||"var(--fraco)"; };
+const escapar = t => String(t??"").replace(/[&<>"']/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const dataHora = iso => { const d=new Date(iso);
+  return d.toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}); };
 
+/* ---------------- navegacao entre telas ---------------- */
+function ir(tela){
+  document.querySelectorAll("main > div").forEach(d => d.hidden = d.id !== "tela-"+tela);
+  document.querySelectorAll("nav a").forEach(a => a.classList.toggle("on", a.dataset.tela===tela));
+  if(tela==="fila") carregarFila();
+  if(tela==="inicio") carregarResumo();
+  if(tela==="nuvem") carregarNuvem();
+}
+document.querySelectorAll("nav a").forEach(a => a.onclick = () => ir(a.dataset.tela));
+
+/* ---------------- painel ---------------- */
+const cartao = (rotulo,valor,cor,extra="") => `
+  <div class="box">
+    <div class="rotulo"><span class="icone" style="background:${cor}22;color:${cor}">●</span>
+      ${rotulo}</div>
+    <div class="numero">${valor}</div>${extra}
+  </div>`;
+
+async function carregarResumo(){
+  const r = await api("/api/resumo");
+  const run = r.ultimo_run;
+  const estadoRun = !run ? '<span class="pill">sem execuções</span>'
+    : run.status !== "completed" ? '<span class="pill aten">rodando</span>'
+    : run.conclusion === "success" ? '<span class="pill ok">última: sucesso</span>'
+    : `<span class="pill mal">última: ${escapar(run.conclusion)}</span>`;
+
+  document.getElementById("resumo").innerHTML =
+      cartao("Páginas ativas", r.paginas, "#3b5bfd")
+    + cartao("Posts agendados", r.agendados, "#7b3bfd")
+    + cartao("Publicados hoje", r.publicados_hoje, "#0f9d58")
+    + cartao("Total já publicado", r.total_publicado, "#c98a00",
+             `<div style="margin-top:10px">${estadoRun}</div>`);
+
+  const est = await api("/api/estoque");
+  const linhas = (est.paginas||[]);
+  const critico = linhas.filter(l => l.dias !== null && l.dias < 5).length;
+  document.getElementById("pillEstoque").className = "pill " + (critico ? "aten" : "ok");
+  document.getElementById("pillEstoque").textContent = critico
+    ? `${critico} acabando` : "tudo certo";
+
+  document.getElementById("estoque").innerHTML = linhas.length ? linhas.map(l => {
+    if(l.erro) return `<div class="linha"><span class="nome">${escapar(l.pagina)}</span>
+      <span class="pill mal">erro</span></div>`;
+    const pct = l.total ? Math.round(l.restantes/l.total*100) : 0;
+    const alerta = l.dias!==null && l.dias<5 ? "aten" : "ok";
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--linha)">
+      <div class="linha" style="border:0;padding:0">
+        <span class="nome">${escapar(l.pagina)}</span>
+        <span class="pill ${alerta}">${l.dias===null?"–":l.dias+" dias"}</span>
+      </div>
+      <div class="rotulo" style="font-size:12px">${l.restantes} de ${l.total} vídeos restantes</div>
+      <div class="barra"><i style="width:${pct}%"></i></div>
+    </div>`;
+  }).join("") : '<p class="vazio">Nenhuma página configurada ainda.</p>';
+}
+
+async function carregarFila(){
+  const r = await api("/api/fila");
+  const ag = r.agendados||[], pv = r.previstos||[];
+  document.getElementById("pillAgendados").textContent = ag.length;
+  document.getElementById("agendados").innerHTML = ag.length ? ag.map(i => `
+    <div class="linha"><span class="quando">${dataHora(i.quando)}</span>
+      <span class="nome" title="${escapar(i.arquivo)}">${escapar(i.arquivo)}</span></div>`).join("")
+    : '<p class="vazio">Nada agendado. O robô agenda de madrugada, ou clique em "Rodar agora".</p>';
+  document.getElementById("previstos").innerHTML = pv.length ? pv.map(i => `
+    <div class="linha"><span class="quando">${dataHora(i.quando)}</span>
+      <span class="nome">${escapar(i.pagina)}</span></div>`).join("")
+    : '<p class="vazio">Sem horários livres na janela.</p>';
+}
+
+async function rodar(teste){
+  msg("disparando…");
+  const r = await api("/api/rodar", {teste});
+  msg(r.mensagem, "var(--verde)");
+  setTimeout(carregarResumo, 4000);
+}
+const abrirActions = () => window.open("https://github.com/Pedrox1997/fb-autoposter/actions","_blank");
+
+/* ---------------- contas de nuvem ---------------- */
+let vigiaNuvem = null;
+
+async function carregarNuvem(){
+  const r = await api("/api/nuvem/status");
+  const remotes = r.remotes||[];
+  document.getElementById("pillNuvem").textContent = remotes.length;
+  document.getElementById("listaRemotes").innerHTML = remotes.length
+    ? remotes.map(n => `<div class="linha"><span class="nome">☁️ <b>${escapar(n)}</b></span>
+        <span class="pill ok">conectada</span></div>`).join("")
+    : '<p class="vazio">Nenhuma conta conectada ainda.</p>';
+
+  const aviso = document.getElementById("estadoNuvem");
+  const botao = document.getElementById("btnNuvem");
+  const rodando = r.estado === "aguardando" || r.estado === "salvando";
+  botao.disabled = rodando;
+  aviso.textContent = r.mensagem || "";
+  aviso.style.color = r.estado === "erro" ? "var(--erro)"
+                    : r.estado === "ok" ? "var(--verde)" : "var(--fraco)";
+
+  if(rodando && !vigiaNuvem) vigiaNuvem = setInterval(carregarNuvem, 2500);
+  if(!rodando && vigiaNuvem){ clearInterval(vigiaNuvem); vigiaNuvem = null; }
+}
+
+async function conectarNuvem(){
+  document.getElementById("estadoNuvem").textContent = "abrindo a janela da Microsoft…";
+  const r = await api("/api/nuvem/conectar", {});
+  if(!r.ok){ msg(r.erro, "var(--erro)"); return; }
+  carregarNuvem();
+}
+
+/* ---------------- inicio ---------------- */
 async function iniciar(){
   estado = await api("/api/estado");
-  document.getElementById("status").innerHTML =
-    `<span class="chip ${estado.tem_token?"ok":"nao"}">token do Facebook ${estado.tem_token?"ok":"faltando"}</span>
-     <span class="chip ${estado.tem_rclone?"ok":"nao"}">rclone ${estado.tem_rclone?"ok":"faltando"}</span>`;
-  const perfis = estado.perfis || [];
-  document.getElementById("estadoTokens").textContent = perfis.length
-    ? `${perfis.length} perfil(is) conectado(s)`
-    : "Nenhum perfil conectado ainda.";
-  document.getElementById("listaPerfis").innerHTML = perfis.map(p => `
-    <div class="item" style="cursor:default">
-      <span style="flex:1">👤 <b>${escapar(p.nome)}</b>
-        <span class="id">${escapar(p.slot)}</span></span>
-      <span class="dica" style="margin:0">${p.erro ? "erro: " + escapar(p.erro)
-                                                   : p.paginas + " página(s)"}</span>
-    </div>`).join("");
 
+  const perfis = estado.perfis||[];
+  document.getElementById("estadoTokens").textContent = perfis.length
+    ? `${perfis.length} perfil(is) conectado(s)` : "Nenhum perfil conectado ainda.";
+  document.getElementById("listaPerfis").innerHTML = perfis.map(p => `
+    <div class="linha"><span class="nome">👤 <b>${escapar(p.nome)}</b>
+      <span class="id">${escapar(p.slot)}</span></span>
+      <span class="pill">${p.erro ? "erro" : p.paginas+" página(s)"}</span></div>`).join("");
   const sel = document.getElementById("slot");
-  if(sel){
-    const opcoes = perfis.map(p => p.slot);
-    if(estado.proximo_slot) opcoes.push(estado.proximo_slot);
-    sel.innerHTML = opcoes.map((s,i) =>
-      `<option value="${s}">Perfil ${i+1}${i===opcoes.length-1 && estado.proximo_slot===s
-        ? " (novo)" : ""}</option>`).join("");
-  }
+  const opcoes = perfis.map(p=>p.slot); if(estado.proximo_slot) opcoes.push(estado.proximo_slot);
+  sel.innerHTML = opcoes.map((s,i)=>`<option value="${s}">Perfil ${i+1}</option>`).join("");
   document.getElementById("comApp").hidden = !estado.app_ok;
   document.getElementById("semApp").hidden = !!estado.app_ok;
-  document.getElementById("redirectUri").textContent = estado.redirect_uri || "";
+  document.getElementById("redirectUri").textContent = estado.redirect_uri||"";
 
-  (estado.config.pages || []).forEach(p => {
-    conf[String(p.page_id)] = {
-      nome: p.name, marcada: true,
-      pasta: p.source || "", tz: p.timezone || estado.config.timezone,
-      horarios: (p.times || (estado.config.defaults||{}).times || []).map(String),
-      tipo: p.post_type || (estado.config.defaults||{}).post_type || "video",
-      hashtags: p.hashtags || ""
-    };
+  (estado.config.pages||[]).forEach(p => {
+    conf[String(p.page_id)] = {nome:p.name, marcada:true, pasta:p.source||"",
+      tz:p.timezone||estado.config.timezone,
+      horarios:(p.times||(estado.config.defaults||{}).times||[]).map(String),
+      tipo:p.post_type||(estado.config.defaults||{}).post_type||"video",
+      hashtags:p.hashtags||""};
   });
 
-  if(!estado.tem_token){ desenhar(); return; }
-  const r = await api("/api/paginas");
-  if(r.erro){
-    document.getElementById("alerta").innerHTML =
-      `<div class="aviso">Não consegui listar suas páginas: ${r.erro}</div>`;
+  if(estado.tem_token){
+    const r = await api("/api/paginas");
+    if(r.erro) document.getElementById("alerta").innerHTML =
+      `<div class="aviso">Não consegui listar suas páginas: ${escapar(r.erro)}</div>`;
+    paginas = r.paginas||[];
+    paginas.forEach(p => {
+      conf[p.id] = conf[p.id] || {nome:p.nome, marcada:false, pasta:"",
+        tz:estado.config.timezone||"America/Sao_Paulo",
+        horarios:((estado.config.defaults||{}).times||["09:00","13:00","19:30"]).map(String),
+        tipo:"video", hashtags:""};
+      conf[p.id].nome = p.nome;
+    });
   }
-  paginas = r.paginas || [];
-  paginas.forEach(p => {
-    conf[p.id] = conf[p.id] || {nome:p.nome, marcada:false, pasta:"",
-      tz: estado.config.timezone || "America/Sao_Paulo",
-      horarios: ((estado.config.defaults||{}).times || ["09:00","13:00","19:30"]).map(String),
-      tipo: "video", hashtags:""};
-    conf[p.id].nome = p.nome;
-  });
   desenhar();
+  carregarResumo();
 }
 
+/* ---------------- paginas ---------------- */
 function desenhar(){
-  const filtro = (document.getElementById("busca").value || "").toLowerCase();
+  const filtro=(document.getElementById("busca").value||"").toLowerCase();
   const lista = paginas.length ? paginas
-    : Object.entries(conf).map(([id,c]) => ({id, nome:c.nome}));
-
+    : Object.entries(conf).map(([id,c])=>({id,nome:c.nome}));
   document.getElementById("paginas").innerHTML = lista
     .filter(p => p.nome.toLowerCase().includes(filtro))
-    .map(p => {
-      const c = conf[p.id];
-      return `<div class="pagina ${c.marcada?"on":""}">
-        <div class="topo">
-          <input type="checkbox" ${c.marcada?"checked":""} onchange="marcar('${p.id}',this.checked)">
-          <b>${p.nome}</b><span class="id">${p.id}</span>
-        </div>
-        ${c.marcada ? corpo(p.id, c) : ""}
-      </div>`;
-    }).join("") || "<p class='dica'>Nenhuma página encontrada.</p>";
+    .map(p => { const c=conf[p.id]; return `<div class="pagina ${c.marcada?"on":""}">
+      <div class="topo">
+        <input type="checkbox" ${c.marcada?"checked":""} onchange="marcar('${p.id}',this.checked)">
+        <b>${escapar(p.nome)}</b><span class="id">${p.id}</span></div>
+      ${c.marcada?corpo(p.id,c):""}</div>`;
+    }).join("") || '<p class="vazio">Nenhuma página encontrada.</p>';
 }
 
-function corpo(id, c){
-  const fusos = estado.fusos.map(f =>
+function corpo(id,c){
+  const fusos = (estado.fusos||[]).map(f =>
     `<option value="${f.tz}" ${c.tz===f.tz?"selected":""}>${f.nome} — ${f.tz}</option>`).join("");
   return `<div class="corpo">
     <label>Pasta dos vídeos</label>
     <div class="pasta">
-      <input value="${c.pasta}" placeholder="onedrive:Pasta/Subpasta"
+      <input value="${escapar(c.pasta)}" placeholder="onedrive:Pasta/Subpasta"
              onchange="campo('${id}','pasta',this.value); contar('${id}')">
-      <button class="sec" onclick="abrirPasta('${id}')">Procurar</button>
-    </div>
+      <button class="sec" onclick="abrirPasta('${id}')">Procurar</button></div>
     <div class="conta" id="conta-${id}"></div>
-
     <div class="grade">
-      <div>
-        <label>Fuso horário do público</label>
-        <select onchange="campo('${id}','tz',this.value)">${fusos}</select>
-      </div>
-      <div>
-        <label>Formato</label>
+      <div><label>Fuso do público</label>
+        <select onchange="campo('${id}','tz',this.value)">${fusos}</select></div>
+      <div><label>Formato</label>
         <select onchange="campo('${id}','tipo',this.value)">
           <option value="video" ${c.tipo==="video"?"selected":""}>Vídeo (qualquer duração)</option>
           <option value="reel" ${c.tipo==="reel"?"selected":""}>Reels (até 90s)</option>
-        </select>
-      </div>
+        </select></div>
     </div>
-
-    <label>Horários de publicação (no fuso acima)</label>
+    <label>Horários (no fuso acima)</label>
     <div class="horarios">
-      ${c.horarios.map((h,i) => `<span class="hora">${h}
-         <button onclick="tirarHora('${id}',${i})">×</button></span>`).join("")}
+      ${c.horarios.map((h,i)=>`<span class="hora">${h}
+        <button onclick="tirarHora('${id}',${i})">×</button></span>`).join("")}
       <input type="time" style="width:130px" onchange="porHora('${id}',this.value); this.value=''">
     </div>
-
     <label>Hashtags no fim da legenda (opcional)</label>
-    <input value="${c.hashtags}" placeholder="#fe #deus"
+    <input value="${escapar(c.hashtags)}" placeholder="#fe #deus"
            onchange="campo('${id}','hashtags',this.value)">
-
     <div style="margin-top:14px">
-      <button class="sec" onclick="testar('${c.nome.replace(/'/g,"\\'")}')">Testar: publicar 1 vídeo agora</button>
-    </div>
+      <button class="sec" onclick="testar('${c.nome.replace(/'/g,"\\'")}')">
+        Testar: publicar 1 vídeo agora</button></div>
   </div>`;
 }
 
-const campo = (id,k,v) => { conf[id][k] = v; };
-const marcar = (id,v) => { conf[id].marcada = v; desenhar(); };
-const tirarHora = (id,i) => { conf[id].horarios.splice(i,1); desenhar(); };
-function porHora(id,v){
-  if(!v) return;
+const campo=(id,k,v)=>{conf[id][k]=v};
+const marcar=(id,v)=>{conf[id].marcada=v; desenhar()};
+const tirarHora=(id,i)=>{conf[id].horarios.splice(i,1); desenhar()};
+function porHora(id,v){ if(!v) return;
   if(!conf[id].horarios.includes(v)) conf[id].horarios.push(v);
-  conf[id].horarios.sort();
-  desenhar();
-}
+  conf[id].horarios.sort(); desenhar(); }
 
 async function contar(id){
-  const alvo = document.getElementById("conta-"+id);
-  if(!conf[id].pasta){ alvo.textContent = ""; return; }
-  alvo.textContent = "verificando…";
-  const r = await api("/api/contar?caminho=" + encodeURIComponent(conf[id].pasta));
-  alvo.textContent = r.erro ? "erro: " + r.erro
+  const alvo=document.getElementById("conta-"+id);
+  if(!conf[id].pasta){ alvo.textContent=""; return; }
+  alvo.textContent="verificando…";
+  const r = await api("/api/contar?caminho="+encodeURIComponent(conf[id].pasta));
+  alvo.textContent = r.erro ? "erro: "+r.erro
     : `${r.total} vídeo(s) · ${r.mb} MB · ex: ${(r.exemplos||[]).join(" | ").slice(0,90)}`;
 }
 
-const escapar = t => String(t).replace(/[&<>"']/g,
-  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-
+/* ---------------- navegador de pastas ---------------- */
 async function abrirPasta(id){
-  atual = id;
-  caminhoAtual = conf[id].pasta || "onedrive:";
+  atual=id; caminhoAtual=conf[id].pasta||"onedrive:";
   dlgPasta.showModal();
-  await navegar();
+  const r = await api("/api/remotes");
+  const atualRemote = caminhoAtual.split(":")[0];
+  document.getElementById("remotes").innerHTML = (r.remotes||[]).map(n =>
+    `<option value="${n}" ${n===atualRemote?"selected":""}>${escapar(n)}</option>`).join("");
+  navegar();
 }
+const trocarRemote = nome => { caminhoAtual = nome+":"; navegar(); };
 
 function trilha(){
-  // caminho clicavel: da para pular direto para qualquer nivel acima
-  const [remote, resto=""] = caminhoAtual.split(/:(.*)/s);
+  const [remote,resto=""] = caminhoAtual.split(/:(.*)/s);
+  let ac = remote+":";
   const partes = resto.split("/").filter(Boolean);
-  let acumulado = remote + ":";
-  const pedacos = [`<a href="#" data-ir="${escapar(acumulado)}">${escapar(remote)}</a>`];
-  partes.forEach(p => {
-    acumulado = acumulado.endsWith(":") ? acumulado + p : acumulado + "/" + p;
-    pedacos.push(`<a href="#" data-ir="${escapar(acumulado)}">${escapar(p)}</a>`);
-  });
-  return pedacos.join(" <span style='opacity:.5'>›</span> ");
+  const p = [`<a href="#" data-ir="${escapar(ac)}">${escapar(remote)}</a>`];
+  partes.forEach(x => { ac = ac.endsWith(":") ? ac+x : ac+"/"+x;
+    p.push(`<a href="#" data-ir="${escapar(ac)}">${escapar(x)}</a>`); });
+  return p.join(" › ");
 }
 
 async function navegar(){
-  const cabeca = document.getElementById("dlgCaminho");
-  cabeca.innerHTML = trilha();
-  cabeca.querySelectorAll("a[data-ir]").forEach(a => a.onclick = ev => {
-    ev.preventDefault(); caminhoAtual = a.dataset.ir; navegar();
-  });
+  const cab=document.getElementById("dlgCaminho");
+  cab.innerHTML = trilha();
+  cab.querySelectorAll("a[data-ir]").forEach(a => a.onclick = e => {
+    e.preventDefault(); caminhoAtual=a.dataset.ir; navegar(); });
 
-  const lista = document.getElementById("dlgLista");
-  lista.innerHTML = "<p class='dica'>carregando…</p>";
-  const r = await api("/api/pastas?caminho=" + encodeURIComponent(caminhoAtual));
+  const lista=document.getElementById("dlgLista");
+  lista.innerHTML="<p class='vazio'>carregando…</p>";
+  const r = await api("/api/pastas?caminho="+encodeURIComponent(caminhoAtual));
+  if(r.erro){ lista.innerHTML=`<p class="vazio">erro: ${escapar(r.erro)}</p>`; return; }
 
-  if(r.erro){ lista.innerHTML = `<p class="dica">erro: ${escapar(r.erro)}</p>`; return; }
-
-  // data-nome + listener: nome com aspas, parenteses ou acento nao quebra
-  const subpastas = r.pastas.map(p =>
-    `<div class="item" data-nome="${escapar(p.nome)}">
-       <span style="flex:1">📁 ${escapar(p.nome)}</span>
-       <span class="dica" style="margin:0">${p.itens} item(ns)</span>
-     </div>`).join("");
-
-  lista.innerHTML =
-    `<div id="aquiDentro" class="dica" style="padding:8px 10px">contando vídeos…</div>`
-    + (subpastas || "<p class='dica'>Sem subpastas — esta é a pasta final.</p>");
+  const subs = (r.pastas||[]).map(p => `
+    <div class="item" data-nome="${escapar(p.nome)}">
+      <span style="flex:1">📁 ${escapar(p.nome)}</span>
+      <span class="rotulo">${p.itens} item(ns)</span></div>`).join("");
+  lista.innerHTML = `<div id="aquiDentro" class="rotulo" style="padding:8px 10px">
+      contando vídeos…</div>` + (subs || "<p class='vazio'>Sem subpastas — pasta final.</p>");
   lista.querySelectorAll(".item").forEach(el => el.onclick = () => entrar(el.dataset.nome));
 
-  // contagem de videos da pasta em que estamos, para decidir sem sair daqui
-  const alvo = caminhoAtual;
-  const c = await api("/api/contar?caminho=" + encodeURIComponent(alvo));
-  if(alvo !== caminhoAtual) return;            // usuario ja navegou para outra
-  const aqui = document.getElementById("aquiDentro");
-  if(!aqui) return;
-  if(c.erro){ aqui.textContent = "não consegui contar: " + c.erro; return; }
-  aqui.innerHTML = c.total
-    ? `<b style="color:var(--verde)">${c.total} vídeo(s) aqui</b> · ${c.mb} MB<br>
-       <span style="opacity:.8">ex: ${escapar((c.exemplos||[]).join("  |  ").slice(0,110))}</span>`
-    : "<b>nenhum vídeo direto nesta pasta</b> — entre numa das subpastas abaixo";
+  const alvo=caminhoAtual;
+  const c = await api("/api/contar?caminho="+encodeURIComponent(alvo));
+  if(alvo!==caminhoAtual) return;
+  const aqui=document.getElementById("aquiDentro"); if(!aqui) return;
+  aqui.innerHTML = c.erro ? "não consegui contar: "+escapar(c.erro)
+    : c.total ? `<b style="color:var(--verde)">${c.total} vídeo(s) aqui</b> · ${c.mb} MB`
+              : "<b>nenhum vídeo direto aqui</b> — entre numa subpasta";
 }
 
-function entrar(nome){
-  caminhoAtual = caminhoAtual.endsWith(":") ? caminhoAtual + nome : caminhoAtual + "/" + nome;
-  navegar();
-}
+const entrar = nome => { caminhoAtual = caminhoAtual.endsWith(":")
+  ? caminhoAtual+nome : caminhoAtual+"/"+nome; navegar(); };
 function subir(){
   if(caminhoAtual.endsWith(":")) return;
-  const corte = caminhoAtual.lastIndexOf("/");
-  caminhoAtual = corte > caminhoAtual.indexOf(":") ? caminhoAtual.slice(0, corte)
-                                                   : caminhoAtual.split(":")[0] + ":";
+  const corte=caminhoAtual.lastIndexOf("/");
+  caminhoAtual = corte>caminhoAtual.indexOf(":") ? caminhoAtual.slice(0,corte)
+                                                 : caminhoAtual.split(":")[0]+":";
   navegar();
 }
-function irRaiz(){ caminhoAtual = caminhoAtual.split(":")[0] + ":"; navegar(); }
-function usarPasta(){ conf[atual].pasta = caminhoAtual; dlgPasta.close(); desenhar(); contar(atual); }
+function usarPasta(){ conf[atual].pasta=caminhoAtual; dlgPasta.close(); desenhar(); contar(atual); }
 
+/* ---------------- salvar ---------------- */
 function montar(){
-  const pages = Object.entries(conf).filter(([,c]) => c.marcada).map(([id,c]) => {
-    const p = {name:c.nome, page_id:String(id), timezone:c.tz,
-               source:c.pasta, post_type:c.tipo, times:c.horarios};
-    if(c.hashtags) p.hashtags = c.hashtags;
+  const pages = Object.entries(conf).filter(([,c])=>c.marcada).map(([id,c]) => {
+    const p={name:c.nome, page_id:String(id), timezone:c.tz, source:c.pasta,
+             post_type:c.tipo, times:c.horarios};
+    if(c.hashtags) p.hashtags=c.hashtags;
     return p;
   });
-  return {timezone: estado.config.timezone || "America/Sao_Paulo",
-          defaults: {order:"name"}, pages};
+  return {timezone:estado.config.timezone||"America/Sao_Paulo",
+          defaults:{order:"name"}, pages};
 }
-
 async function salvar(){
-  const dados = montar();
-  const semPasta = dados.pages.filter(p => !p.source).map(p => p.name);
-  if(semPasta.length){ msg("Falta escolher a pasta de: " + semPasta.join(", "), "var(--erro)"); return; }
-  if(!dados.pages.length){ msg("Marque pelo menos uma página.", "var(--erro)"); return; }
-  const r = await api("/api/salvar", dados);
-  msg(r.ok ? `Salvo: ${r.paginas} página(s).` : "Erro ao salvar", r.ok ? "var(--verde)" : "var(--erro)");
+  const d=montar();
+  const semPasta=d.pages.filter(p=>!p.source).map(p=>p.name);
+  if(semPasta.length){ msg("Falta a pasta de: "+semPasta.join(", "),"var(--erro)"); return; }
+  if(!d.pages.length){ msg("Marque pelo menos uma página.","var(--erro)"); return; }
+  const r=await api("/api/salvar", d);
+  msg(r.ok?`Salvo: ${r.paginas} página(s).`:"Erro ao salvar", r.ok?"var(--verde)":"var(--erro)");
   return r.ok;
 }
-
 async function publicar(){
   if(!(await salvar())) return;
-  msg("enviando para o GitHub…");
-  const r = await api("/api/publicar", {});
-  msg(r.ok ? r.mensagem : "Erro: " + r.erro, r.ok ? "var(--verde)" : "var(--erro)");
+  msg("enviando…");
+  const r=await api("/api/publicar",{});
+  msg(r.ok?r.mensagem:"Erro: "+r.erro, r.ok?"var(--verde)":"var(--erro)");
 }
 
-const entrarFB = slot => location.href = "/oauth/entrar" + (slot ? "?slot=" + slot : "");
-const verManual = () => document.getElementById("manual").hidden = false;
-
+/* ---------------- perfis ---------------- */
+const entrarFB = slot => location.href="/oauth/entrar"+(slot?"?slot="+slot:"");
+const verManual = () => document.getElementById("manual").hidden=false;
 async function salvarApp(){
-  const id = document.getElementById("appId").value.trim();
-  const seg = document.getElementById("appSecret").value.trim();
-  if(!id || !seg){ msg("Preencha os dois campos.", "var(--erro)"); return; }
-  await api("/api/app", {app_id:id, app_secret:seg});
-  location.reload();
+  const id=document.getElementById("appId").value.trim();
+  const s=document.getElementById("appSecret").value.trim();
+  if(!id||!s){ msg("Preencha os dois campos.","var(--erro)"); return; }
+  await api("/api/app",{app_id:id, app_secret:s}); location.reload();
 }
-
 async function salvarToken(){
-  const t = document.getElementById("token").value.trim();
-  if(!t){ msg("Cole o token antes de salvar.", "var(--erro)"); return; }
-  msg("salvando…");
-  const r = await api("/api/token", {token:t, slot:document.getElementById("slot").value});
-  if(r.github === "falhou") msg("Salvo no PC, mas não no GitHub: " + (r.detalhe||""), "var(--erro)");
+  const t=document.getElementById("token").value.trim();
+  if(!t){ msg("Cole o token antes.","var(--erro)"); return; }
+  await api("/api/token",{token:t, slot:document.getElementById("slot").value});
   location.reload();
 }
-
 async function testar(nome){
-  document.getElementById("saidaTeste").textContent = "Publicando… pode levar 1 minuto.";
+  document.getElementById("saidaTeste").textContent="Publicando… pode levar 1 minuto.";
   dlgTeste.showModal();
-  const r = await api("/api/testar", {pagina:nome});
-  document.getElementById("saidaTeste").textContent = r.saida || r.erro || "sem saída";
+  const r=await api("/api/testar",{pagina:nome});
+  document.getElementById("saidaTeste").textContent = r.saida||r.erro||"sem saída";
 }
 
 iniciar();

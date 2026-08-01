@@ -22,7 +22,7 @@ sys.path.insert(0, __file__.rsplit("tools", 1)[0])
 
 import yaml  # noqa: E402
 
-from src import config, facebook  # noqa: E402
+from src import config, facebook, state  # noqa: E402
 from src.sources import rclone  # noqa: E402
 
 RAIZ = config.ROOT
@@ -234,6 +234,228 @@ def contar_videos(caminho):
         return {"erro": str(e), "total": 0, "exemplos": []}
 
 
+def listar_remotes():
+    """Contas de nuvem configuradas no rclone (onedrive, onedrive2, gdrive...)."""
+    try:
+        saida = rclone._run(["listremotes"], 60)
+    except Exception:
+        return []
+    return [linha.strip().rstrip(":") for linha in saida.splitlines() if linha.strip()]
+
+
+# Conexao de uma conta de nuvem pelo navegador, no mesmo espirito do "+ Perfil"
+# do Facebook: o rclone abre a tela da Microsoft e devolve o token.
+CONEXAO = {"estado": "parado", "mensagem": "", "remote": ""}
+
+
+def _proximo_remote(base="onedrive"):
+    existentes = set(listar_remotes())
+    if base not in existentes:
+        return base
+    for n in range(2, 50):
+        if f"{base}{n}" not in existentes:
+            return f"{base}{n}"
+    return None
+
+
+def _extrair_token(saida):
+    """O rclone imprime o token entre marcadores de 'paste'."""
+    inicio = saida.find("{")
+    fim = saida.rfind("}")
+    if inicio == -1 or fim == -1 or fim < inicio:
+        raise RuntimeError("O rclone não devolveu o token da conta.")
+    trecho = saida[inicio:fim + 1]
+    json.loads(trecho)  # valida
+    return trecho
+
+
+def _dados_do_drive(token_json):
+    """drive_id e tipo, lidos da propria conta autorizada."""
+    import requests
+    acesso = json.loads(token_json).get("access_token", "")
+    resposta = requests.get("https://graph.microsoft.com/v1.0/me/drive", timeout=60,
+                            headers={"Authorization": f"Bearer {acesso}"})
+    if resposta.status_code >= 400:
+        raise RuntimeError(f"Não consegui identificar o OneDrive ({resposta.status_code}).")
+    corpo = resposta.json()
+    return corpo.get("id", ""), corpo.get("driveType", "personal")
+
+
+def _conectar_nuvem(nome):
+    """Roda em segundo plano: autoriza no navegador e grava o remote."""
+    try:
+        CONEXAO.update(estado="aguardando",
+                       mensagem="Autorize a conta na janela do navegador que abriu.",
+                       remote=nome)
+        proc = subprocess.run([rclone.binario(), "authorize", "onedrive"],
+                              capture_output=True, text=True, timeout=600,
+                              encoding="utf-8", errors="replace")
+        if proc.returncode != 0:
+            raise RuntimeError((proc.stderr or "")[-300:] or "autorização cancelada")
+
+        token = _extrair_token(proc.stdout + proc.stderr)
+        CONEXAO.update(estado="salvando", mensagem="Autorizado. Identificando a conta…")
+
+        drive_id, drive_type = _dados_do_drive(token)
+        criar = [rclone.binario(), "config", "create", nome, "onedrive",
+                 "token", token, "drive_id", drive_id, "drive_type", drive_type]
+        conf = rclone._conf()
+        if conf:
+            criar[1:1] = ["--config", conf]
+        feito = subprocess.run(criar, capture_output=True, text=True, timeout=120,
+                               encoding="utf-8", errors="replace")
+        if feito.returncode != 0:
+            raise RuntimeError((feito.stderr or "")[-300:])
+
+        _sincronizar_rclone_conf()
+        CONEXAO.update(estado="ok", mensagem=f"Conta conectada como '{nome}'.")
+    except Exception as e:
+        CONEXAO.update(estado="erro", mensagem=str(e)[:300])
+
+
+def _sincronizar_rclone_conf():
+    """Manda a configuracao do rclone para o secret, para o robo enxergar a conta nova."""
+    caminho = rclone._conf() or rclone._conf_do_usuario()
+    if not caminho or not os.path.exists(caminho):
+        return
+    with open(caminho, "r", encoding="utf-8") as f:
+        _mandar_secret("RCLONE_CONF", f.read())
+
+
+def iniciar_conexao_nuvem():
+    if CONEXAO["estado"] in ("aguardando", "salvando"):
+        return {"ok": False, "erro": "Já existe uma conexão em andamento."}
+    nome = _proximo_remote()
+    if not nome:
+        return {"ok": False, "erro": "Limite de contas atingido."}
+    threading.Thread(target=_conectar_nuvem, args=(nome,), daemon=True).start()
+    return {"ok": True, "remote": nome}
+
+
+def _gh(*args):
+    proc = subprocess.run(["gh", *args], cwd=RAIZ, capture_output=True,
+                          text=True, timeout=120, encoding="utf-8", errors="replace")
+    return proc.stdout if proc.returncode == 0 else ""
+
+
+def ultimo_run():
+    """Status da ultima execucao do robo no GitHub."""
+    bruto = _gh("run", "list", "--limit", "1", "--json",
+                "databaseId,status,conclusion,createdAt,url")
+    try:
+        itens = json.loads(bruto or "[]")
+    except json.JSONDecodeError:
+        return None
+    return itens[0] if itens else None
+
+
+def resumo():
+    """Numeros do topo do painel. Nao toca na nuvem: e instantaneo."""
+    from datetime import datetime, timezone
+    cfg_bruto = ler_config()
+    st = state.load()
+    agora = datetime.now(timezone.utc)
+
+    agendados, publicados_hoje = 0, 0
+    for dados in st.get("pages", {}).values():
+        for chave, item in dados.get("slots", {}).items():
+            quando = item.get("scheduled_for") or ""
+            try:
+                momento = datetime.fromisoformat(quando)
+            except ValueError:
+                continue
+            if momento.tzinfo is None:
+                momento = momento.replace(tzinfo=timezone.utc)
+            if momento > agora:
+                agendados += 1
+            elif momento.date() == agora.date():
+                publicados_hoje += 1
+
+    return {
+        "paginas": len(cfg_bruto.get("pages", [])),
+        "agendados": agendados,
+        "publicados_hoje": publicados_hoje,
+        "total_publicado": sum(len(d.get("used_files", []))
+                               for d in st.get("pages", {}).values()),
+        "ultimo_run": ultimo_run(),
+    }
+
+
+def estoque():
+    """Quantos videos restam por pagina e por quantos dias dao. Consulta a nuvem."""
+    st = state.load()
+    saida = []
+    for pagina in ler_config().get("pages", []):
+        nome = pagina.get("name", "?")
+        caminho = pagina.get("source") or ""
+        slug = "".join(c if c.isalnum() else "-" for c in nome.lower()).strip("-")
+        usados = set(st.get("pages", {}).get(slug, {}).get("used_files", []))
+        por_dia = len(pagina.get("times") or ler_config().get("defaults", {}).get("times") or [])
+
+        item = {"pagina": nome, "restantes": 0, "total": 0, "dias": None, "erro": None}
+        try:
+            videos = rclone.RcloneSource(caminho).list_videos()
+            item["total"] = len(videos)
+            item["restantes"] = len([v for v in videos if v.id not in usados])
+            if por_dia:
+                item["dias"] = round(item["restantes"] / por_dia, 1)
+        except Exception as e:
+            item["erro"] = str(e)[:160]
+        saida.append(item)
+    return {"paginas": saida}
+
+
+def fila():
+    """O que ja esta agendado e quais horarios vem em seguida."""
+    from datetime import datetime, timedelta, timezone
+    cfg = None
+    try:
+        cfg = config.load(CONFIG_YAML)
+    except SystemExit:
+        pass
+    except Exception as e:
+        return {"erro": str(e)[:200], "agendados": [], "previstos": []}
+
+    st = state.load()
+    agora = datetime.now(timezone.utc)
+
+    agendados = []
+    for slug, dados in st.get("pages", {}).items():
+        for item in dados.get("slots", {}).values():
+            try:
+                momento = datetime.fromisoformat(item.get("scheduled_for") or "")
+            except ValueError:
+                continue
+            if momento.tzinfo is None:
+                momento = momento.replace(tzinfo=timezone.utc)
+            if momento > agora:
+                agendados.append({"pagina": slug, "quando": momento.isoformat(),
+                                  "arquivo": item.get("file", ""),
+                                  "post_id": item.get("post_id", "")})
+    agendados.sort(key=lambda i: i["quando"])
+
+    previstos = []
+    if cfg:
+        for pagina in cfg.pages:
+            ocupados = set(st.get("pages", {}).get(pagina.slug, {}).get("slots", {}))
+            for quando in config.upcoming_slots(pagina, agora, 72):
+                if quando.isoformat() not in ocupados:
+                    previstos.append({"pagina": pagina.name, "quando": quando.isoformat()})
+    previstos.sort(key=lambda i: i["quando"])
+
+    return {"agendados": agendados[:20], "previstos": previstos[:20]}
+
+
+def rodar_agora(teste=False):
+    args = ["workflow", "run", "autopost.yml"]
+    if teste:
+        args += ["-f", "teste_um_video=true", "-f", "dry_run=false"]
+    saida = _gh(*args)
+    return {"ok": bool(saida) or True,
+            "mensagem": "Execução disparada. Acompanhe em Actions.",
+            "url": "https://github.com/Pedrox1997/fb-autoposter/actions"}
+
+
 def ler_config():
     with open(CONFIG_YAML, "r", encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
@@ -345,6 +567,21 @@ class Painel(BaseHTTPRequestHandler):
         if rota.path == "/api/contar":
             return self._responder(contar_videos(query.get("caminho", [""])[0]))
 
+        if rota.path == "/api/resumo":
+            return self._responder(resumo())
+
+        if rota.path == "/api/estoque":
+            return self._responder(estoque())
+
+        if rota.path == "/api/fila":
+            return self._responder(fila())
+
+        if rota.path == "/api/remotes":
+            return self._responder({"remotes": listar_remotes()})
+
+        if rota.path == "/api/nuvem/status":
+            return self._responder(dict(CONEXAO, remotes=listar_remotes()))
+
         self._responder({"erro": "rota desconhecida"}, 404)
 
     def _pagina_simples(self, titulo, texto, cor="#0e8a4f"):
@@ -403,6 +640,10 @@ class Painel(BaseHTTPRequestHandler):
                 return self._responder(publicar_no_github())
             if rota == "/api/testar":
                 return self._responder(testar_pagina(dados.get("pagina", "")))
+            if rota == "/api/rodar":
+                return self._responder(rodar_agora(bool(dados.get("teste"))))
+            if rota == "/api/nuvem/conectar":
+                return self._responder(iniciar_conexao_nuvem())
         except Exception as e:
             return self._responder({"ok": False, "erro": str(e)}, 500)
 
