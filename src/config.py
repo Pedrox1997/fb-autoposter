@@ -62,9 +62,26 @@ def _detect_source(kind, ref):
     return "gdrive"
 
 
+def _carregar_env_local():
+    """Le o .env da raiz (fora do git) para rodar na maquina do usuario."""
+    caminho = os.path.join(ROOT, ".env")
+    if not os.path.exists(caminho):
+        return
+    with open(caminho, "r", encoding="utf-8") as f:
+        for linha in f:
+            linha = linha.strip()
+            if not linha or linha.startswith("#") or "=" not in linha:
+                continue
+            chave, _, valor = linha.partition("=")
+            chave, valor = chave.strip(), valor.strip().strip('"').strip("'")
+            if chave and not os.environ.get(chave):
+                os.environ[chave] = valor
+
+
 def _bootstrap_secrets():
     """O workflow injeta todas as GitHub Secrets em ALL_SECRETS. Assim, adicionar
     uma pagina nova exige mexer so no config.yaml, nunca no YAML do workflow."""
+    _carregar_env_local()
     blob = os.environ.pop("ALL_SECRETS", "").strip()
     if not blob:
         return

@@ -7,6 +7,7 @@ trazer retomada de download, retry e controle de banda.
 
 PAGE1_SOURCE vira o caminho no remote, ex: "onedrive:Videos/Daily Blessings".
 """
+import glob
 import json
 import os
 import shutil
@@ -15,59 +16,113 @@ import subprocess
 from .base import Item, local_path, sort_items, ROOT
 
 VIDEO_EXT = (".mp4", ".mov", ".m4v", ".webm", ".avi", ".mkv")
+CONF_PATH = os.path.join(ROOT, "rclone.conf")
+TIMEOUT_LIST = 300
+TIMEOUT_DOWNLOAD = 3600
 
 # Lixo de sincronizacao do OneDrive/Office: sao copias dos videos reais e
 # fariam o robo postar o mesmo conteudo duas vezes.
 PREFIXOS_TEMPORARIOS = ("~tmp", "~$", ".~", "._")
 SUFIXOS_TEMPORARIOS = (".partial", ".tmp", ".crdownload", ".download")
 
+_conf_pronto = None
+_binario_cache = []
+
 
 def descartavel(nome):
     baixo = nome.lower()
     return (baixo.startswith(PREFIXOS_TEMPORARIOS)
             or baixo.endswith(SUFIXOS_TEMPORARIOS))
-CONF_PATH = os.path.join(ROOT, "rclone.conf")
-TIMEOUT_LIST = 300
-TIMEOUT_DOWNLOAD = 3600
-_conf_pronto = False
 
 
 def binario():
-    caminho = shutil.which("rclone")
-    if not caminho:
-        raise RuntimeError(
-            "rclone nao encontrado. Instale com: winget install Rclone.Rclone"
-        )
-    return caminho
+    """Caminho do rclone. Nao depende so do PATH: no Windows o winget instala
+    numa pasta que nem todo shell enxerga."""
+    if _binario_cache:
+        return _binario_cache[0]
+
+    candidatos = [os.environ.get("RCLONE_BIN", "").strip(), shutil.which("rclone")]
+
+    local = os.environ.get("LOCALAPPDATA", "")
+    if local:
+        candidatos.append(os.path.join(local, "Microsoft", "WinGet", "Links", "rclone.exe"))
+        candidatos += glob.glob(os.path.join(
+            local, "Microsoft", "WinGet", "Packages", "Rclone.Rclone*", "*", "rclone.exe"))
+
+    for programas in (os.environ.get("ProgramFiles"), os.environ.get("ProgramFiles(x86)")):
+        if programas:
+            candidatos.append(os.path.join(programas, "rclone", "rclone.exe"))
+    candidatos += ["/usr/bin/rclone", "/usr/local/bin/rclone"]
+
+    for caminho in candidatos:
+        if caminho and os.path.exists(caminho):
+            _binario_cache.append(caminho)
+            return caminho
+
+    raise RuntimeError(
+        "rclone nao encontrado. Instale com: winget install Rclone.Rclone "
+        "(ou aponte a variavel RCLONE_BIN para o executavel)."
+    )
+
+
+def _conf_do_usuario():
+    """Configuracao que o proprio rclone criou na maquina (uso local)."""
+    candidatos = []
+    if os.environ.get("APPDATA"):
+        candidatos.append(os.path.join(os.environ["APPDATA"], "rclone", "rclone.conf"))
+    lar = os.path.expanduser("~")
+    candidatos += [
+        os.path.join(lar, ".config", "rclone", "rclone.conf"),
+        os.path.join(lar, ".rclone.conf"),
+    ]
+    for caminho in candidatos:
+        if os.path.exists(caminho) and os.path.getsize(caminho) > 0:
+            return caminho
+    return None
 
 
 def _conf():
-    """Grava o rclone.conf a partir do secret, uma vez por execucao."""
+    """Caminho do rclone.conf, ou None para deixar o rclone usar o padrao dele.
+
+    No GitHub o conteudo vem do secret RCLONE_CONF; na maquina do usuario
+    aproveita a configuracao que o 'rclone config' ja criou.
+    """
     global _conf_pronto
     if _conf_pronto:
-        return CONF_PATH
+        return _conf_pronto if _conf_pronto != "padrao" else None
 
     if os.path.exists(CONF_PATH) and os.path.getsize(CONF_PATH) > 0:
-        _conf_pronto = True
+        _conf_pronto = CONF_PATH
         return CONF_PATH
 
     conteudo = os.environ.get("RCLONE_CONF", "").strip()
-    if not conteudo:
-        raise RuntimeError(
-            "Secret RCLONE_CONF ausente. Gere com 'rclone config' e cole o "
-            "conteudo do arquivo rclone.conf no secret."
-        )
-    with open(CONF_PATH, "w", encoding="utf-8") as f:
-        f.write(conteudo + "\n")
-    os.chmod(CONF_PATH, 0o600)
-    _conf_pronto = True
-    return CONF_PATH
+    if conteudo:
+        with open(CONF_PATH, "w", encoding="utf-8") as f:
+            f.write(conteudo + "\n")
+        os.chmod(CONF_PATH, 0o600)
+        _conf_pronto = CONF_PATH
+        return CONF_PATH
+
+    if _conf_do_usuario():
+        _conf_pronto = "padrao"
+        return None
+
+    raise RuntimeError(
+        "Nenhuma configuracao do rclone encontrada. Rode 'rclone config' nesta "
+        "maquina, ou cadastre o secret RCLONE_CONF no GitHub."
+    )
 
 
 def _run(args, timeout):
-    cmd = [binario(), "--config", _conf(), "--retries", "5",
-           "--low-level-retries", "10", "--timeout", "120s"] + args
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    conf = _conf()
+    cmd = [binario()]
+    if conf:
+        cmd += ["--config", conf]
+    cmd += ["--retries", "5", "--low-level-retries", "10", "--timeout", "120s"] + args
+    # encoding explicito: no Windows o padrao e a codepage local (cp1252) e os
+    # nomes com emoji quebram a decodificacao - silenciosamente, devolvendo vazio.
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
+                          encoding="utf-8", errors="replace")
     if proc.returncode != 0:
         erro = (proc.stderr or proc.stdout or "").strip()[-600:]
         raise RuntimeError(f"rclone falhou ({proc.returncode}): {erro}")

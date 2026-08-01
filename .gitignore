@@ -1,10 +1,10 @@
-.env
 *.json.local
 *.local.txt
-service-account.json
-downloads/
-__pycache__/
 *.pyc
+.env
 .venv/
-venv/
+__pycache__/
+downloads/
 rclone.conf
+service-account.json
+venv/

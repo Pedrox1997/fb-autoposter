@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Postador — Painel</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#fff; --linha:#e3e6ea; --txt:#1a1d21; --fraco:#6b7280;
+    --azul:#1877f2; --azul-esc:#145dbf; --verde:#0e8a4f; --erro:#c0392b; --aviso:#8a6d0e;
+    --aviso-bg:#fff8e1; --radius:10px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#15171a; --card:#1e2126; --linha:#2f343b; --txt:#e8eaed; --fraco:#9aa3ad;
+           --aviso-bg:#2b2612; --aviso:#e3c05a; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+       font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:88px}
+  header{background:var(--card);border-bottom:1px solid var(--linha);padding:16px 20px;
+         position:sticky;top:0;z-index:20}
+  header h1{margin:0;font-size:18px}
+  .status{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .chip{font-size:12px;padding:3px 10px;border-radius:999px;border:1px solid var(--linha)}
+  .chip.ok{color:var(--verde);border-color:var(--verde)}
+  .chip.nao{color:var(--erro);border-color:var(--erro)}
+  main{max-width:900px;margin:0 auto;padding:20px}
+  .card{background:var(--card);border:1px solid var(--linha);border-radius:var(--radius);
+        padding:18px;margin-bottom:16px}
+  .card h2{margin:0 0 4px;font-size:16px}
+  .dica{color:var(--fraco);font-size:13px;margin:0 0 14px}
+  label{display:block;font-size:13px;color:var(--fraco);margin:12px 0 4px}
+  input,select{width:100%;padding:9px 11px;border:1px solid var(--linha);border-radius:8px;
+               background:var(--bg);color:var(--txt);font-size:14px}
+  button{padding:9px 16px;border:0;border-radius:8px;background:var(--azul);color:#fff;
+         font-size:14px;font-weight:600;cursor:pointer}
+  button:hover{background:var(--azul-esc)}
+  button.sec{background:transparent;color:var(--txt);border:1px solid var(--linha)}
+  button.sec:hover{background:var(--bg)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .aviso{background:var(--aviso-bg);border:1px solid var(--aviso);color:var(--aviso);
+         padding:12px 14px;border-radius:8px;font-size:13px;margin-bottom:16px}
+  .pagina{border:1px solid var(--linha);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+  .pagina.on{border-color:var(--azul);box-shadow:0 0 0 1px var(--azul)}
+  .topo{display:flex;align-items:center;gap:10px}
+  .topo input[type=checkbox]{width:18px;height:18px;flex:0 0 auto;margin:0}
+  .topo b{flex:1}
+  .id{font-size:12px;color:var(--fraco);font-family:ui-monospace,monospace}
+  .corpo{margin-top:14px;padding-top:14px;border-top:1px dashed var(--linha)}
+  .grade{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:640px){ .grade{grid-template-columns:1fr} }
+  .horarios{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .hora{background:var(--bg);border:1px solid var(--linha);border-radius:999px;
+        padding:4px 8px 4px 12px;font-size:13px;display:flex;align-items:center;gap:6px}
+  .hora button{background:transparent;color:var(--fraco);padding:0 4px;font-size:16px;line-height:1}
+  .hora button:hover{color:var(--erro);background:transparent}
+  .pasta{display:flex;gap:8px;align-items:center}
+  .pasta input{font-family:ui-monospace,monospace;font-size:13px}
+  .conta{font-size:12px;color:var(--fraco);margin-top:6px;min-height:18px}
+  .barra{position:fixed;bottom:0;left:0;right:0;background:var(--card);
+         border-top:1px solid var(--linha);padding:14px 20px;display:flex;gap:10px;
+         justify-content:flex-end;align-items:center;z-index:20}
+  .barra .msg{margin-right:auto;font-size:13px;color:var(--fraco)}
+  dialog{border:1px solid var(--linha);border-radius:var(--radius);background:var(--card);
+         color:var(--txt);max-width:560px;width:92%;padding:0}
+  dialog::backdrop{background:rgba(0,0,0,.5)}
+  .dlg-topo{padding:14px 18px;border-bottom:1px solid var(--linha);display:flex;
+            align-items:center;gap:10px}
+  .dlg-corpo{padding:8px 18px;max-height:50vh;overflow:auto}
+  .dlg-base{padding:14px 18px;border-top:1px solid var(--linha);display:flex;gap:8px;
+            justify-content:flex-end}
+  .item{padding:9px 10px;border-radius:8px;cursor:pointer;display:flex;gap:8px}
+  .item:hover{background:var(--bg)}
+  .caminho{font-family:ui-monospace,monospace;font-size:12px;color:var(--fraco);
+           word-break:break-all;padding:8px 18px}
+  pre{background:var(--bg);border:1px solid var(--linha);border-radius:8px;padding:12px;
+      font-size:12px;overflow:auto;max-height:340px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Postador automático — configuração</h1>
+  <div class="status" id="status"></div>
+</header>
+
+<main>
+  <div id="alerta"></div>
+
+  <div class="card" id="cardToken" hidden>
+    <h2>Token do Facebook</h2>
+    <p class="dica">Cole o token de usuário de longa duração. Ele fica só no seu computador,
+       no arquivo <code>.env</code>, que não vai para o GitHub.</p>
+    <input id="token" type="password" placeholder="EAAT5...">
+    <div style="margin-top:12px"><button onclick="salvarToken()">Salvar token</button></div>
+  </div>
+
+  <div class="card">
+    <h2>Suas páginas</h2>
+    <p class="dica">Marque as que o robô deve alimentar e configure pasta, fuso e horários de cada uma.</p>
+    <input id="busca" placeholder="Filtrar por nome..." oninput="desenhar()" style="margin-bottom:14px">
+    <div id="paginas"></div>
+  </div>
+</main>
+
+<div class="barra">
+  <span class="msg" id="msg"></span>
+  <button class="sec" onclick="salvar()">Salvar no computador</button>
+  <button onclick="publicar()">Salvar e enviar para o robô</button>
+</div>
+
+<dialog id="dlgPasta">
+  <div class="dlg-topo"><b style="flex:1">Escolher pasta</b>
+    <button class="sec" onclick="dlgPasta.close()">Fechar</button></div>
+  <div class="caminho" id="dlgCaminho"></div>
+  <div class="dlg-corpo" id="dlgLista"></div>
+  <div class="dlg-base">
+    <button class="sec" onclick="subir()">Voltar uma pasta</button>
+    <button onclick="usarPasta()">Usar esta pasta</button>
+  </div>
+</dialog>
+
+<dialog id="dlgTeste">
+  <div class="dlg-topo"><b style="flex:1">Teste de publicação</b>
+    <button class="sec" onclick="dlgTeste.close()">Fechar</button></div>
+  <div class="dlg-corpo"><pre id="saidaTeste">Rodando…</pre></div>
+</dialog>
+
+<script>
+let estado = {fusos:[], config:{}}, paginas = [], conf = {}, atual = null, caminhoAtual = "onedrive:";
+
+const api = async (rota, dados) => {
+  const opc = dados ? {method:"POST", headers:{"Content-Type":"application/json"},
+                       body:JSON.stringify(dados)} : {};
+  return (await fetch(rota, opc)).json();
+};
+const msg = (t, cor) => { const e = document.getElementById("msg");
+  e.textContent = t; e.style.color = cor || "var(--fraco)"; };
+
+async function iniciar(){
+  estado = await api("/api/estado");
+  document.getElementById("status").innerHTML =
+    `<span class="chip ${estado.tem_token?"ok":"nao"}">token do Facebook ${estado.tem_token?"ok":"faltando"}</span>
+     <span class="chip ${estado.tem_rclone?"ok":"nao"}">rclone ${estado.tem_rclone?"ok":"faltando"}</span>`;
+  document.getElementById("cardToken").hidden = estado.tem_token;
+
+  (estado.config.pages || []).forEach(p => {
+    conf[String(p.page_id)] = {
+      nome: p.name, marcada: true,
+      pasta: p.source || "", tz: p.timezone || estado.config.timezone,
+      horarios: (p.times || (estado.config.defaults||{}).times || []).map(String),
+      tipo: p.post_type || (estado.config.defaults||{}).post_type || "video",
+      hashtags: p.hashtags || ""
+    };
+  });
+
+  if(!estado.tem_token){ desenhar(); return; }
+  const r = await api("/api/paginas");
+  if(r.erro){
+    document.getElementById("alerta").innerHTML =
+      `<div class="aviso">Não consegui listar suas páginas: ${r.erro}</div>`;
+  }
+  paginas = r.paginas || [];
+  paginas.forEach(p => {
+    conf[p.id] = conf[p.id] || {nome:p.nome, marcada:false, pasta:"",
+      tz: estado.config.timezone || "America/Sao_Paulo",
+      horarios: ((estado.config.defaults||{}).times || ["09:00","13:00","19:30"]).map(String),
+      tipo: "video", hashtags:""};
+    conf[p.id].nome = p.nome;
+  });
+  desenhar();
+}
+
+function desenhar(){
+  const filtro = (document.getElementById("busca").value || "").toLowerCase();
+  const lista = paginas.length ? paginas
+    : Object.entries(conf).map(([id,c]) => ({id, nome:c.nome}));
+
+  document.getElementById("paginas").innerHTML = lista
+    .filter(p => p.nome.toLowerCase().includes(filtro))
+    .map(p => {
+      const c = conf[p.id];
+      return `<div class="pagina ${c.marcada?"on":""}">
+        <div class="topo">
+          <input type="checkbox" ${c.marcada?"checked":""} onchange="marcar('${p.id}',this.checked)">
+          <b>${p.nome}</b><span class="id">${p.id}</span>
+        </div>
+        ${c.marcada ? corpo(p.id, c) : ""}
+      </div>`;
+    }).join("") || "<p class='dica'>Nenhuma página encontrada.</p>";
+}
+
+function corpo(id, c){
+  const fusos = estado.fusos.map(f =>
+    `<option value="${f.tz}" ${c.tz===f.tz?"selected":""}>${f.nome} — ${f.tz}</option>`).join("");
+  return `<div class="corpo">
+    <label>Pasta dos vídeos</label>
+    <div class="pasta">
+      <input value="${c.pasta}" placeholder="onedrive:Pasta/Subpasta"
+             onchange="campo('${id}','pasta',this.value); contar('${id}')">
+      <button class="sec" onclick="abrirPasta('${id}')">Procurar</button>
+    </div>
+    <div class="conta" id="conta-${id}"></div>
+
+    <div class="grade">
+      <div>
+        <label>Fuso horário do público</label>
+        <select onchange="campo('${id}','tz',this.value)">${fusos}</select>
+      </div>
+      <div>
+        <label>Formato</label>
+        <select onchange="campo('${id}','tipo',this.value)">
+          <option value="video" ${c.tipo==="video"?"selected":""}>Vídeo (qualquer duração)</option>
+          <option value="reel" ${c.tipo==="reel"?"selected":""}>Reels (até 90s)</option>
+        </select>
+      </div>
+    </div>
+
+    <label>Horários de publicação (no fuso acima)</label>
+    <div class="horarios">
+      ${c.horarios.map((h,i) => `<span class="hora">${h}
+         <button onclick="tirarHora('${id}',${i})">×</button></span>`).join("")}
+      <input type="time" style="width:130px" onchange="porHora('${id}',this.value); this.value=''">
+    </div>
+
+    <label>Hashtags no fim da legenda (opcional)</label>
+    <input value="${c.hashtags}" placeholder="#fe #deus"
+           onchange="campo('${id}','hashtags',this.value)">
+
+    <div style="margin-top:14px">
+      <button class="sec" onclick="testar('${c.nome.replace(/'/g,"\\'")}')">Testar: publicar 1 vídeo agora</button>
+    </div>
+  </div>`;
+}
+
+const campo = (id,k,v) => { conf[id][k] = v; };
+const marcar = (id,v) => { conf[id].marcada = v; desenhar(); };
+const tirarHora = (id,i) => { conf[id].horarios.splice(i,1); desenhar(); };
+function porHora(id,v){
+  if(!v) return;
+  if(!conf[id].horarios.includes(v)) conf[id].horarios.push(v);
+  conf[id].horarios.sort();
+  desenhar();
+}
+
+async function contar(id){
+  const alvo = document.getElementById("conta-"+id);
+  if(!conf[id].pasta){ alvo.textContent = ""; return; }
+  alvo.textContent = "verificando…";
+  const r = await api("/api/contar?caminho=" + encodeURIComponent(conf[id].pasta));
+  alvo.textContent = r.erro ? "erro: " + r.erro
+    : `${r.total} vídeo(s) · ${r.mb} MB · ex: ${(r.exemplos||[]).join(" | ").slice(0,90)}`;
+}
+
+async function abrirPasta(id){ atual = id; caminhoAtual = conf[id].pasta || "onedrive:"; await navegar(); dlgPasta.showModal(); }
+async function navegar(){
+  document.getElementById("dlgCaminho").textContent = caminhoAtual;
+  document.getElementById("dlgLista").innerHTML = "<p class='dica'>carregando…</p>";
+  const r = await api("/api/pastas?caminho=" + encodeURIComponent(caminhoAtual));
+  document.getElementById("dlgLista").innerHTML = r.erro
+    ? `<p class="dica">erro: ${r.erro}</p>`
+    : (r.pastas.length
+        ? r.pastas.map(n => `<div class="item" onclick="entrar('${n.replace(/'/g,"\\'")}')">📁 ${n}</div>`).join("")
+        : "<p class='dica'>Sem subpastas aqui. Use esta pasta.</p>");
+}
+function entrar(nome){
+  caminhoAtual = caminhoAtual.endsWith(":") ? caminhoAtual + nome : caminhoAtual + "/" + nome;
+  navegar();
+}
+function subir(){
+  if(caminhoAtual.endsWith(":")) return;
+  const corte = caminhoAtual.lastIndexOf("/");
+  caminhoAtual = corte > caminhoAtual.indexOf(":") ? caminhoAtual.slice(0,corte)
+                                                   : caminhoAtual.split(":")[0] + ":";
+  navegar();
+}
+function usarPasta(){ conf[atual].pasta = caminhoAtual; dlgPasta.close(); desenhar(); contar(atual); }
+
+function montar(){
+  const pages = Object.entries(conf).filter(([,c]) => c.marcada).map(([id,c]) => {
+    const p = {name:c.nome, page_id:String(id), timezone:c.tz,
+               source:c.pasta, post_type:c.tipo, times:c.horarios};
+    if(c.hashtags) p.hashtags = c.hashtags;
+    return p;
+  });
+  return {timezone: estado.config.timezone || "America/Sao_Paulo",
+          defaults: {order:"name"}, pages};
+}
+
+async function salvar(){
+  const dados = montar();
+  const semPasta = dados.pages.filter(p => !p.source).map(p => p.name);
+  if(semPasta.length){ msg("Falta escolher a pasta de: " + semPasta.join(", "), "var(--erro)"); return; }
+  if(!dados.pages.length){ msg("Marque pelo menos uma página.", "var(--erro)"); return; }
+  const r = await api("/api/salvar", dados);
+  msg(r.ok ? `Salvo: ${r.paginas} página(s).` : "Erro ao salvar", r.ok ? "var(--verde)" : "var(--erro)");
+  return r.ok;
+}
+
+async function publicar(){
+  if(!(await salvar())) return;
+  msg("enviando para o GitHub…");
+  const r = await api("/api/publicar", {});
+  msg(r.ok ? r.mensagem : "Erro: " + r.erro, r.ok ? "var(--verde)" : "var(--erro)");
+}
+
+async function salvarToken(){
+  const t = document.getElementById("token").value.trim();
+  if(!t) return;
+  await api("/api/token", {token:t});
+  location.reload();
+}
+
+async function testar(nome){
+  document.getElementById("saidaTeste").textContent = "Publicando… pode levar 1 minuto.";
+  dlgTeste.showModal();
+  const r = await api("/api/testar", {pagina:nome});
+  document.getElementById("saidaTeste").textContent = r.saida || r.erro || "sem saída";
+}
+
+iniciar();
+</script>
+</body>
+</html>
