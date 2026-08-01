@@ -49,15 +49,16 @@ def _env(name, page_name):
 
 
 def _detect_source(kind, ref):
+    """rclone quando o valor tem a forma 'remote:caminho'; senao, Google Drive."""
     if kind and kind != "auto":
         return kind
     low = ref.lower()
     if low.startswith("http"):
-        if "sharepoint" in low or "onedrive" in low or "1drv.ms" in low:
-            return "onedrive"
         if "drive.google" in low or "docs.google" in low:
             return "gdrive"
-        return "onedrive"
+        return "rclone"
+    if ":" in ref and not ref.startswith("/"):
+        return "rclone"
     return "gdrive"
 
 

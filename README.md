@@ -45,45 +45,49 @@ gh repo create fb-autoposter --private --source=. --push
 5. Copie o e-mail da conta de serviço (algo como `robo@projeto.iam.gserviceaccount.com`).
 6. No Google Drive, **compartilhe a pasta dos vídeos** com esse e-mail como **Leitor**.
 
-### 3. Acesso ao OneDrive
+### 3. Acesso ao OneDrive (via rclone)
 
 A Microsoft cortou o acesso anônimo a links de compartilhamento em contas
-migradas para o SharePoint Online — todas as rotas anônimas devolvem 401. Por
-isso o robô usa um app registrado.
+migradas para o SharePoint Online, e conta pessoal não consegue registrar app no
+Azure ("criar aplicativos fora de um diretório foi preterida"). O rclone resolve
+os dois problemas: ele tem registro próprio na Microsoft.
 
-**a) Registrar o app** em <https://portal.azure.com> → **Registros de aplicativo**
-→ **Novo registro**:
-
-- Nome: qualquer um (ex: "Postador OneDrive")
-- Tipos de conta: **Contas pessoais da Microsoft e contas em qualquer diretório organizacional**
-- Redirecionamento: deixe vazio
-- Criar → copie o **ID do aplicativo (cliente)**
-
-**b) Liberar o fluxo de dispositivo:** no app criado → **Autenticação** → role até
-**Configurações avançadas** → **Permitir fluxos de cliente público: Sim** → Salvar.
-
-**c) Permissões:** → **Permissões de API** → **Adicionar** → **Microsoft Graph** →
-**Permissões delegadas** → marque `Files.Read.All` e `offline_access` → Adicionar.
-
-**d) Gerar o refresh token** (uma vez só, na sua máquina):
-
+**a) Instalar:**
 ```powershell
-cd "c:\Users\pedro\Projetos pedro\fb-autoposter"
-.\.venv\Scripts\python.exe -m tools.onedrive_login
+winget install Rclone.Rclone
 ```
 
-Ele mostra um código, você autoriza no navegador e ele devolve o
-`ONEDRIVE_REFRESH_TOKEN` para cadastrar nos Secrets.
+**b) Conectar a conta** (uma vez só):
+```powershell
+rclone config
+```
+- `n` (new remote) → nome: **onedrive**
+- tipo: procure o número de **Microsoft OneDrive**
+- `client_id` e `client_secret`: deixe **vazios** (Enter) — é o que usa o registro do rclone
+- region: `1` (global)
+- "Edit advanced config?": `n`
+- "Use web browser to automatically authenticate?": `y` → autorize na janela que abrir
+- tipo de conta: **OneDrive Personal**
+- confirme o drive encontrado e finalize com `q`
 
-**e) Indicar a pasta** no secret `PAGE1_SOURCE`, de um dos dois jeitos:
-- o link de compartilhamento da pasta, ou
-- o caminho dentro do seu OneDrive, ex: `/Videos/Daily Blessings`
+**c) Testar e descobrir o caminho da pasta:**
+```powershell
+rclone lsd onedrive:
+rclone lsjson --files-only "onedrive:Videos/Daily Blessings"
+```
 
-> **Renovação automática:** a Microsoft devolve um refresh token novo a cada
-> execução, e o original morre em ~90 dias. Se você cadastrar um secret `GH_PAT`
-> (token do GitHub com permissão de escrita em Secrets), o robô grava o token novo
-> sozinho e o acesso nunca expira. Sem o `GH_PAT` funciona igual, mas você precisa
-> rodar o `onedrive_login` de novo a cada ~90 dias — o log avisa.
+**d) Levar a configuração para o GitHub:** abra o arquivo abaixo e copie o
+conteúdo inteiro para o secret `RCLONE_CONF`.
+```powershell
+rclone config file    # mostra onde está o rclone.conf
+notepad "$env:APPDATA\rclone\rclone.conf"
+```
+
+**e) `PAGE1_SOURCE`** recebe o caminho da pasta no formato
+`onedrive:Videos/Daily Blessings`.
+
+> O mesmo mecanismo serve para Dropbox, Mega, Google Drive, S3 e outros: basta
+> configurar outro remote e apontar `PAGE1_SOURCE` para ele.
 
 ### 4. Token da Página do Facebook
 
@@ -107,11 +111,9 @@ No repositório: **Settings → Secrets and variables → Actions → New reposi
 |---|---|
 | `PAGE1_ID` | ID numérico da Página |
 | `PAGE1_TOKEN` | Page Access Token |
-| `PAGE1_SOURCE` | link/caminho da pasta do OneDrive **ou** ID da pasta do Drive |
-| `ONEDRIVE_CLIENT_ID` | ID do aplicativo do Azure (só para OneDrive) |
-| `ONEDRIVE_REFRESH_TOKEN` | gerado pelo `tools.onedrive_login` (só para OneDrive) |
+| `PAGE1_SOURCE` | caminho da pasta, ex: `onedrive:Videos/Daily Blessings` |
+| `RCLONE_CONF` | conteúdo inteiro do `rclone.conf` (só para OneDrive e afins) |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | JSON da conta de serviço (só para Google Drive) |
-| `GH_PAT` | opcional: renova o refresh token do OneDrive sozinho |
 
 ### 6. Ajustar o `config.yaml`
 

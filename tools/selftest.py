@@ -13,7 +13,7 @@ sys.path.insert(0, __file__.rsplit("tools", 1)[0])
 from src import config, state  # noqa: E402
 from src.sources import base  # noqa: E402
 from src.sources.gdrive import folder_id_from  # noqa: E402
-from src.sources.onedrive import OneDriveSource, _share_id  # noqa: E402
+from src.sources.rclone import RcloneSource  # noqa: E402
 
 TZ = ZoneInfo("America/Sao_Paulo")
 falhas = []
@@ -91,29 +91,28 @@ print("\n[deteccao de fonte]")
 check("id puro -> gdrive", config._detect_source("auto", "1A2b3C") == "gdrive")
 check("link do drive -> gdrive",
       config._detect_source("auto", "https://drive.google.com/drive/folders/1A2b") == "gdrive")
-check("1drv.ms -> onedrive", config._detect_source("auto", "https://1drv.ms/f/s!abc") == "onedrive")
-check("onedrive.live -> onedrive",
-      config._detect_source("auto", "https://onedrive.live.com/?id=x") == "onedrive")
-check("tipo explicito vence", config._detect_source("onedrive", "1A2b3C") == "onedrive")
+check("remote:pasta -> rclone",
+      config._detect_source("auto", "onedrive:Videos/Daily") == "rclone")
+check("remote sem subpasta -> rclone",
+      config._detect_source("auto", "onedrive:") == "rclone")
+check("tipo explicito vence", config._detect_source("rclone", "1A2b3C") == "rclone")
+check("'onedrive' continua valendo como tipo",
+      config._detect_source("onedrive", "onedrive:Videos") == "onedrive")
 
 print("\n[links]")
 check("extrai id de /folders/", folder_id_from("https://drive.google.com/drive/folders/1AbC_-9?usp=sharing") == "1AbC_-9")
 check("extrai id de ?id=", folder_id_from("https://drive.google.com/open?id=1XyZ") == "1XyZ")
 check("id puro passa direto", folder_id_from("1XyZ") == "1XyZ")
-tok = _share_id("https://1drv.ms/f/s!AbC")
-check("share id do onedrive comeca com u!", tok.startswith("u!"))
-check("share id sem padding", not tok.endswith("="))
-check("share id e base64url (sem + nem /)", "+" not in tok and "/" not in tok[2:])
-
-print("\n[onedrive: link x caminho]")
-por_link = OneDriveSource("https://1drv.ms/f/c/123/AbC")
-por_caminho = OneDriveSource("/Videos/Daily Blessings")
-check("link vira endpoint de shares", "/shares/u!" in por_link._base_url())
-check("caminho vira endpoint do proprio drive",
-      por_caminho._base_url().endswith("/me/drive/root:/Videos/Daily Blessings:"),
-      por_caminho._base_url())
-check("caminho tolera barra no inicio e no fim",
-      OneDriveSource("/Videos/")._base_url() == OneDriveSource("Videos")._base_url())
+print("\n[rclone]")
+src_rc = RcloneSource("onedrive:Videos/Daily Blessings")
+check("guarda o remote", src_rc.remote == "onedrive:Videos/Daily Blessings")
+check("tira barra do fim",
+      RcloneSource("onedrive:Videos/").remote == "onedrive:Videos")
+try:
+    RcloneSource("Videos/Daily")
+    check("recusa caminho sem remote", False, "aceitou caminho invalido")
+except ValueError:
+    check("recusa caminho sem remote", True)
 
 print("\n[legendas]")
 item = base.Item(id="1", name="historia_da_vovo.mp4")

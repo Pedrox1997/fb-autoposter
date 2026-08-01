@@ -1,10 +1,10 @@
-"""Fontes de video: Google Drive (service account) e OneDrive (link publico)."""
+"""Fontes de video: rclone (OneDrive e afins) e Google Drive."""
 from .base import Item, caption_for  # noqa: F401  (reexport p/ o main)
 from .gdrive import GoogleDriveSource
-from .onedrive import OneDriveSource
+from .rclone import RcloneSource
 
 
 def get(page):
-    if page.source_type == "onedrive":
-        return OneDriveSource(page.source_ref, order=page.order)
+    if page.source_type in ("rclone", "onedrive"):
+        return RcloneSource(page.source_ref, order=page.order)
     return GoogleDriveSource(page.source_ref, order=page.order)

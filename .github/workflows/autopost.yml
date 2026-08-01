@@ -38,6 +38,14 @@ jobs:
       - name: Garantir ffmpeg
         run: ffprobe -version >/dev/null 2>&1 || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
 
+      - name: Instalar rclone
+        run: |
+          if ! command -v rclone >/dev/null 2>&1; then
+            curl -fsSL https://rclone.org/install.sh | sudo bash \
+              || (sudo apt-get update -qq && sudo apt-get install -y -qq rclone)
+          fi
+          rclone version | head -1
+
       - name: Instalar dependencias
         run: pip install -q -r requirements.txt
 

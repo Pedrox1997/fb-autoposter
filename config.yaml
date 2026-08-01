@@ -29,8 +29,8 @@ pages:
     timezone: America/New_York     # os horarios abaixo sao no fuso DESTA pagina
 
     source:
-      type: onedrive
-      env: PAGE1_SOURCE            # secret com o link publico da pasta
+      type: rclone                 # rclone | gdrive
+      env: PAGE1_SOURCE            # secret com o caminho, ex: onedrive:Videos/Daily
 
     post_type: reel
     times:
