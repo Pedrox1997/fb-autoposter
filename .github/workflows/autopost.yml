@@ -62,14 +62,17 @@ jobs:
       - name: Instalar dependencias
         run: pip install -q -r requirements.txt
 
+      # Os inputs entram SO por variavel de ambiente. Interpolar ${{ inputs.x }}
+      # dentro do 'run' permitiria injecao de comando pelo campo de texto.
       - name: Publicar
         env:
           ALL_SECRETS: ${{ toJSON(secrets) }}
           DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
           TESTE_ESCOLHA: ${{ inputs.teste_escolha }}
           TESTE_NOME: ${{ inputs.teste_nome }}
+          TESTE_UM_VIDEO: ${{ inputs.teste_um_video }}
         run: |
-          if [ "${{ inputs.teste_um_video }}" = "true" ]; then
+          if [ "$TESTE_UM_VIDEO" = "true" ]; then
             python -m tools.testar_post
           else
             python -m src.main
