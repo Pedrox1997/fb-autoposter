@@ -170,6 +170,31 @@ for i in range(600):
 state.prune_slots(recarregado, "p2", keep=500)
 check("prune limita o historico", len(recarregado["pages"]["p2"]["slots"]) == 500)
 
+print("\n[fusao de estado: dois runs ao mesmo tempo]")
+from tools.mesclar_estado import fundir  # noqa: E402
+
+# run A publicou v1 na pagina X; run B, simultaneo, publicou v2 na mesma pagina
+run_a = {"pages": {"x": {"used_files": ["v1"], "rejected": {},
+                         "slots": {"s1": {"post_id": "p1"}}}}}
+run_b = {"pages": {"x": {"used_files": ["v2"], "rejected": {"v9": {"file": "ruim"}},
+                         "slots": {"s2": {"post_id": "p2"}}}}}
+juntos = fundir(run_a, run_b)
+check("nenhum video publicado se perde",
+      set(juntos["pages"]["x"]["used_files"]) == {"v1", "v2"},
+      str(juntos["pages"]["x"]["used_files"]))
+check("os dois horarios ficam registrados",
+      set(juntos["pages"]["x"]["slots"]) == {"s1", "s2"})
+check("rejeitados tambem sobrevivem", "v9" in juntos["pages"]["x"]["rejected"])
+check("nao duplica id repetido",
+      fundir(run_a, run_a)["pages"]["x"]["used_files"] == ["v1"])
+check("pagina que so existe de um lado entra",
+      "y" in fundir(run_a, {"pages": {"y": {"used_files": ["v5"]}}})["pages"])
+check("fundir com vazio nao apaga nada",
+      fundir(run_a, {"pages": {}})["pages"]["x"]["used_files"] == ["v1"])
+check("a ordem dos lados nao muda o resultado",
+      sorted(fundir(run_a, run_b)["pages"]["x"]["used_files"])
+      == sorted(fundir(run_b, run_a)["pages"]["x"]["used_files"]))
+
 print("\n[config com varias paginas]")
 YAML = """
 timezone: America/Sao_Paulo

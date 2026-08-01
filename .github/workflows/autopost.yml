@@ -78,17 +78,36 @@ jobs:
             python -m src.main
           fi
 
+      # Sem rebase: dois runs simultaneos conflitam no mesmo JSON e o rebase
+      # trava, derrubando as tentativas seguintes. Aqui a cada tentativa
+      # pegamos a versao mais nova do repositorio e fundimos o nosso registro
+      # nela - a uniao nunca perde um post ja publicado.
       - name: Salvar o que foi postado
         if: always()
         run: |
           git config user.name  "autoposter"
           git config user.email "autoposter@users.noreply.github.com"
-          git add state/posted.json
-          git diff --cached --quiet && echo "sem mudancas no state" && exit 0
-          git commit -m "state: posts de $(date -u +%Y-%m-%d)"
-          for i in 1 2 3; do
-            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && git push && exit 0
-            echo "push falhou, tentativa $i"
-            sleep 5
+          cp state/posted.json /tmp/estado-desta-execucao.json
+
+          for tentativa in 1 2 3 4 5; do
+            git fetch -q origin "${GITHUB_REF_NAME}"
+            git reset -q --hard "origin/${GITHUB_REF_NAME}"
+            python -m tools.mesclar_estado /tmp/estado-desta-execucao.json
+
+            git add state/posted.json
+            if git diff --cached --quiet; then
+              echo "nada novo para registrar"
+              exit 0
+            fi
+
+            git commit -q -m "state: posts de $(date -u +%Y-%m-%d)"
+            if git push -q origin "HEAD:${GITHUB_REF_NAME}"; then
+              echo "estado salvo"
+              exit 0
+            fi
+            echo "outro run gravou primeiro; refazendo com a versao dele (tentativa $tentativa)"
+            sleep $((tentativa * 3))
           done
+
+          echo "::error::nao consegui salvar o estado - risco de repostar video"
           exit 1
