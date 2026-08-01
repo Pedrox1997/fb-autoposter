@@ -87,12 +87,28 @@
 <main>
   <div id="alerta"></div>
 
-  <div class="card" id="cardToken" hidden>
-    <h2>Token do Facebook</h2>
-    <p class="dica">Cole o token de usuário de longa duração. Ele fica só no seu computador,
-       no arquivo <code>.env</code>, que não vai para o GitHub.</p>
-    <input id="token" type="password" placeholder="EAAT5...">
-    <div style="margin-top:12px"><button onclick="salvarToken()">Salvar token</button></div>
+  <div class="card">
+    <h2>Tokens do Facebook</h2>
+    <p class="dica">Cole o token de usuário de longa duração. Ele fica no seu computador
+       (arquivo <code>.env</code>, fora do Git) e é cadastrado como secret do repositório.
+       Se suas páginas estão em <b>dois perfis diferentes</b>, cadastre um token para cada.</p>
+    <div class="grade">
+      <div>
+        <label>Perfil</label>
+        <select id="slot">
+          <option value="FB_USER_TOKEN">Perfil 1 (principal)</option>
+          <option value="FB_USER_TOKEN_2">Perfil 2 (outras páginas)</option>
+        </select>
+      </div>
+      <div>
+        <label>Token</label>
+        <input id="token" type="password" placeholder="EAAT5...">
+      </div>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:10px;align-items:center">
+      <button onclick="salvarToken()">Salvar token</button>
+      <span class="dica" id="estadoTokens" style="margin:0"></span>
+    </div>
   </div>
 
   <div class="card">
@@ -115,7 +131,8 @@
   <div class="caminho" id="dlgCaminho"></div>
   <div class="dlg-corpo" id="dlgLista"></div>
   <div class="dlg-base">
-    <button class="sec" onclick="subir()">Voltar uma pasta</button>
+    <button class="sec" onclick="irRaiz()">Início</button>
+    <button class="sec" onclick="subir()">Voltar</button>
     <button onclick="usarPasta()">Usar esta pasta</button>
   </div>
 </dialog>
@@ -142,7 +159,10 @@ async function iniciar(){
   document.getElementById("status").innerHTML =
     `<span class="chip ${estado.tem_token?"ok":"nao"}">token do Facebook ${estado.tem_token?"ok":"faltando"}</span>
      <span class="chip ${estado.tem_rclone?"ok":"nao"}">rclone ${estado.tem_rclone?"ok":"faltando"}</span>`;
-  document.getElementById("cardToken").hidden = estado.tem_token;
+  const t = estado.tokens || {};
+  document.getElementById("estadoTokens").textContent =
+    "Perfil 1: " + (t.FB_USER_TOKEN ? "cadastrado" : "faltando")
+    + " · Perfil 2: " + (t.FB_USER_TOKEN_2 ? "cadastrado" : "não usado");
 
   (estado.config.pages || []).forEach(p => {
     conf[String(p.page_id)] = {
@@ -252,17 +272,52 @@ async function contar(id){
     : `${r.total} vídeo(s) · ${r.mb} MB · ex: ${(r.exemplos||[]).join(" | ").slice(0,90)}`;
 }
 
-async function abrirPasta(id){ atual = id; caminhoAtual = conf[id].pasta || "onedrive:"; await navegar(); dlgPasta.showModal(); }
-async function navegar(){
-  document.getElementById("dlgCaminho").textContent = caminhoAtual;
-  document.getElementById("dlgLista").innerHTML = "<p class='dica'>carregando…</p>";
-  const r = await api("/api/pastas?caminho=" + encodeURIComponent(caminhoAtual));
-  document.getElementById("dlgLista").innerHTML = r.erro
-    ? `<p class="dica">erro: ${r.erro}</p>`
-    : (r.pastas.length
-        ? r.pastas.map(n => `<div class="item" onclick="entrar('${n.replace(/'/g,"\\'")}')">📁 ${n}</div>`).join("")
-        : "<p class='dica'>Sem subpastas aqui. Use esta pasta.</p>");
+const escapar = t => String(t).replace(/[&<>"']/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+async function abrirPasta(id){
+  atual = id;
+  caminhoAtual = conf[id].pasta || "onedrive:";
+  dlgPasta.showModal();
+  await navegar();
 }
+
+function trilha(){
+  // caminho clicavel: da para pular direto para qualquer nivel acima
+  const [remote, resto=""] = caminhoAtual.split(/:(.*)/s);
+  const partes = resto.split("/").filter(Boolean);
+  let acumulado = remote + ":";
+  const pedacos = [`<a href="#" data-ir="${escapar(acumulado)}">${escapar(remote)}</a>`];
+  partes.forEach(p => {
+    acumulado = acumulado.endsWith(":") ? acumulado + p : acumulado + "/" + p;
+    pedacos.push(`<a href="#" data-ir="${escapar(acumulado)}">${escapar(p)}</a>`);
+  });
+  return pedacos.join(" <span style='opacity:.5'>›</span> ");
+}
+
+async function navegar(){
+  const cabeca = document.getElementById("dlgCaminho");
+  cabeca.innerHTML = trilha();
+  cabeca.querySelectorAll("a[data-ir]").forEach(a => a.onclick = ev => {
+    ev.preventDefault(); caminhoAtual = a.dataset.ir; navegar();
+  });
+
+  const lista = document.getElementById("dlgLista");
+  lista.innerHTML = "<p class='dica'>carregando…</p>";
+  const r = await api("/api/pastas?caminho=" + encodeURIComponent(caminhoAtual));
+
+  if(r.erro){ lista.innerHTML = `<p class="dica">erro: ${escapar(r.erro)}</p>`; return; }
+  if(!r.pastas.length){
+    lista.innerHTML = "<p class='dica'>Esta pasta não tem subpastas — é o destino final. "
+                    + "Clique em <b>Usar esta pasta</b>, ou use o caminho acima para voltar.</p>";
+    return;
+  }
+  // data-nome + listener: nome com aspas, parenteses ou acento nao quebra
+  lista.innerHTML = r.pastas.map(n =>
+    `<div class="item" data-nome="${escapar(n)}">📁 ${escapar(n)}</div>`).join("");
+  lista.querySelectorAll(".item").forEach(el => el.onclick = () => entrar(el.dataset.nome));
+}
+
 function entrar(nome){
   caminhoAtual = caminhoAtual.endsWith(":") ? caminhoAtual + nome : caminhoAtual + "/" + nome;
   navegar();
@@ -270,10 +325,11 @@ function entrar(nome){
 function subir(){
   if(caminhoAtual.endsWith(":")) return;
   const corte = caminhoAtual.lastIndexOf("/");
-  caminhoAtual = corte > caminhoAtual.indexOf(":") ? caminhoAtual.slice(0,corte)
+  caminhoAtual = corte > caminhoAtual.indexOf(":") ? caminhoAtual.slice(0, corte)
                                                    : caminhoAtual.split(":")[0] + ":";
   navegar();
 }
+function irRaiz(){ caminhoAtual = caminhoAtual.split(":")[0] + ":"; navegar(); }
 function usarPasta(){ conf[atual].pasta = caminhoAtual; dlgPasta.close(); desenhar(); contar(atual); }
 
 function montar(){
@@ -306,8 +362,10 @@ async function publicar(){
 
 async function salvarToken(){
   const t = document.getElementById("token").value.trim();
-  if(!t) return;
-  await api("/api/token", {token:t});
+  if(!t){ msg("Cole o token antes de salvar.", "var(--erro)"); return; }
+  msg("salvando…");
+  const r = await api("/api/token", {token:t, slot:document.getElementById("slot").value});
+  if(r.github === "falhou") msg("Salvo no PC, mas não no GitHub: " + (r.detalhe||""), "var(--erro)");
   location.reload();
 }
 

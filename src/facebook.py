@@ -75,15 +75,15 @@ def page_info(page):
 _tokens_cache = {}
 
 
-def page_tokens(user_token):
+def page_tokens(user_token, cache_key="map"):
     """{page_id: {'name', 'token'}} a partir de um token de usuario.
 
     Com muitas paginas, evita cadastrar um secret por pagina: um unico token de
     usuario de longa duracao entrega o token de todas as Paginas que ele
     administra. Os tokens de Pagina assim derivados nao expiram.
     """
-    if "map" in _tokens_cache:
-        return _tokens_cache["map"]
+    if cache_key in _tokens_cache:
+        return _tokens_cache[cache_key]
 
     mapa = {}
     url = f"{GRAPH}/me/accounts"
@@ -95,7 +95,7 @@ def page_tokens(user_token):
         url = (data.get("paging") or {}).get("next")
         params = None  # o link de paginacao ja vem completo
 
-    _tokens_cache["map"] = mapa
+    _tokens_cache[cache_key] = mapa
     return mapa
 
 

@@ -104,17 +104,25 @@ def load(path=None):
     tz = ZoneInfo(raw.get("timezone", "America/Sao_Paulo"))
     pages = []
 
-    # Um unico token de usuario pode entregar o token de todas as Paginas.
-    # Com muitas paginas, isso troca dezenas de secrets por um so.
-    user_token = os.environ.get(raw.get("facebook_user_token_env", "FB_USER_TOKEN"), "").strip()
+    # Um token de usuario entrega o token de todas as Paginas que ele administra.
+    # Aceita varios: paginas espalhadas em perfis diferentes do Facebook exigem
+    # um token por perfil, e os mapas sao somados.
+    nomes_tokens = raw.get("facebook_user_token_env", "FB_USER_TOKEN")
+    if isinstance(nomes_tokens, str):
+        nomes_tokens = [nomes_tokens]
+
     tokens_das_paginas = {}
-    if user_token:
+    for nome_secret in nomes_tokens:
+        user_token = os.environ.get(nome_secret, "").strip()
+        if not user_token:
+            continue
         try:
             from . import facebook
-            tokens_das_paginas = facebook.page_tokens(user_token)
-            print(f"  {len(tokens_das_paginas)} pagina(s) disponiveis pelo token de usuario")
+            mapa = facebook.page_tokens(user_token, cache_key=nome_secret)
+            tokens_das_paginas.update(mapa)
+            print(f"  {nome_secret}: {len(mapa)} pagina(s) disponiveis")
         except Exception as e:
-            print(f"  ! nao consegui listar as paginas pelo token de usuario: {e}")
+            print(f"  ! {nome_secret}: nao consegui listar as paginas -> {e}")
 
     # 'defaults' evita repetir horarios, hashtags e tipo de post em cada pagina
     padroes = raw.get("defaults", {}) or {}

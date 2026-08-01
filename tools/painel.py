@@ -46,23 +46,32 @@ FUSOS = [
 
 # --------------------------------------------------------------- utilidades
 
-def token_usuario():
+SLOTS_TOKEN = ["FB_USER_TOKEN", "FB_USER_TOKEN_2"]
+
+
+def token_usuario(slot="FB_USER_TOKEN"):
     config._carregar_env_local()
-    return os.environ.get("FB_USER_TOKEN", "").strip()
+    return os.environ.get(slot, "").strip()
 
 
-def salvar_token(valor):
+def tokens_presentes():
+    return {slot: bool(token_usuario(slot)) for slot in SLOTS_TOKEN}
+
+
+def salvar_token(valor, slot="FB_USER_TOKEN"):
+    if slot not in SLOTS_TOKEN:
+        slot = "FB_USER_TOKEN"
     linhas = []
     if os.path.exists(ENV_LOCAL):
         with open(ENV_LOCAL, "r", encoding="utf-8") as f:
             linhas = [ln for ln in f.read().splitlines()
-                      if not ln.startswith("FB_USER_TOKEN=")]
-    linhas.append(f"FB_USER_TOKEN={valor}")
+                      if not ln.startswith(f"{slot}=")]
+    linhas.append(f"{slot}={valor}")
     with open(ENV_LOCAL, "w", encoding="utf-8") as f:
-        f.write("\n".join(linhas) + "\n")
-    os.environ["FB_USER_TOKEN"] = valor
-    facebook._tokens_cache.pop("map", None)
-    return _mandar_secret("FB_USER_TOKEN", valor)
+        f.write("\n".join([ln for ln in linhas if ln.strip()]) + "\n")
+    os.environ[slot] = valor
+    facebook._tokens_cache.pop(slot, None)
+    return _mandar_secret(slot, valor)
 
 
 def _mandar_secret(nome, valor):
@@ -78,15 +87,24 @@ def _mandar_secret(nome, valor):
 
 
 def listar_paginas():
-    token = token_usuario()
-    if not token:
+    """Junta as paginas de todos os perfis cujo token esteja cadastrado."""
+    mapa, erros = {}, []
+    for slot in SLOTS_TOKEN:
+        token = token_usuario(slot)
+        if not token:
+            continue
+        try:
+            mapa.update(facebook.page_tokens(token, cache_key=slot))
+        except Exception as e:
+            erros.append(f"{slot}: {e}")
+
+    if not mapa and not erros:
         return {"erro": "sem_token", "paginas": []}
-    try:
-        mapa = facebook.page_tokens(token)
-    except Exception as e:
-        return {"erro": str(e), "paginas": []}
-    return {"paginas": [{"id": pid, "nome": d["name"]} for pid, d in sorted(
-        mapa.items(), key=lambda kv: kv[1]["name"].lower())]}
+    return {
+        "erro": " | ".join(erros) if erros else None,
+        "paginas": [{"id": pid, "nome": d["name"]} for pid, d in sorted(
+            mapa.items(), key=lambda kv: kv[1]["name"].lower())],
+    }
 
 
 def listar_pastas(caminho):
@@ -193,7 +211,8 @@ class Painel(BaseHTTPRequestHandler):
 
         if rota.path == "/api/estado":
             return self._responder({
-                "tem_token": bool(token_usuario()),
+                "tem_token": any(tokens_presentes().values()),
+                "tokens": tokens_presentes(),
                 "tem_rclone": bool(_rclone_ok()),
                 "fusos": [{"nome": n, "tz": t} for n, t in FUSOS],
                 "config": ler_config(),
@@ -220,7 +239,8 @@ class Painel(BaseHTTPRequestHandler):
         rota = urlparse(self.path).path
         try:
             if rota == "/api/token":
-                resultado = salvar_token(dados.get("token", "").strip())
+                resultado = salvar_token(dados.get("token", "").strip(),
+                                         dados.get("slot", "FB_USER_TOKEN"))
                 return self._responder({"ok": True, **resultado})
             if rota == "/api/salvar":
                 return self._responder(escrever_config(dados))
