@@ -91,6 +91,8 @@ jobs:
       # nela - a uniao nunca perde um post ja publicado.
       - name: Salvar o que foi postado
         if: always()
+        env:
+          LIMPAR_AGENDADOS: ${{ inputs.limpar_agendados }}
         run: |
           git config user.name  "autoposter"
           git config user.email "autoposter@users.noreply.github.com"
@@ -99,7 +101,15 @@ jobs:
           for tentativa in 1 2 3 4 5; do
             git fetch -q origin "${GITHUB_REF_NAME}"
             git reset -q --hard "origin/${GITHUB_REF_NAME}"
-            python -m tools.mesclar_estado /tmp/estado-desta-execucao.json
+
+            if [ "$LIMPAR_AGENDADOS" = "true" ]; then
+              # Remocao e intencional: fundir por uniao traria de volta
+              # exatamente os agendamentos que acabamos de apagar.
+              cp /tmp/estado-desta-execucao.json state/posted.json
+              echo "estado substituido (limpeza)"
+            else
+              python -m tools.mesclar_estado /tmp/estado-desta-execucao.json
+            fi
 
             git add state/posted.json
             if git diff --cached --quiet; then
