@@ -75,7 +75,12 @@ def main():
     baixou_em = (datetime.now() - comeco).total_seconds()
     print(f"[ok] baixado em {baixou_em:.0f}s")
 
-    erros, avisos = media.check(caminho, page.post_type)
+    tipo = page.post_type
+    if tipo == "auto":
+        tipo, motivo = media.escolher_formato(caminho)
+        print(f"Formato: {motivo}")
+
+    erros, avisos = media.check(caminho, tipo)
     for a in avisos:
         print(f"     aviso: {a}")
     if erros:

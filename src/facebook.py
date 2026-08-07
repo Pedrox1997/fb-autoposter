@@ -235,7 +235,24 @@ def publish_video(page, path, caption, when_ts=None):
     return video_id
 
 
-def publish(page, path, caption, when_ts=None):
-    if page.post_type == "reel":
+def publish(page, path, caption, when_ts=None, post_type=None):
+    """Publica no formato pedido, com uma rede de seguranca.
+
+    Reels tem esteira de recomendacao propria (alcanca quem nao segue a
+    pagina), mas a API recusa arquivos fora do padrao dela - duracao acima do
+    limite, proporcao errada. Quando isso acontece, publicamos como video de
+    feed em vez de perder o horario. O finish do Reels so acontece no fim,
+    entao uma recusa nao deixa post pela metade.
+    """
+    tipo = (post_type or page.post_type or "video").lower()
+
+    if tipo != "reel":
+        return publish_video(page, path, caption, when_ts)
+
+    try:
         return publish_reel(page, path, caption, when_ts)
-    return publish_video(page, path, caption, when_ts)
+    except FacebookError as e:
+        if e.retryable:
+            raise
+        print(f"     ! Reels recusado ({e}); publicando como video de feed")
+        return publish_video(page, path, caption, when_ts)

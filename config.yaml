@@ -19,7 +19,10 @@ validate_media: true            # pula video fora do padrao do formato
 
 defaults:
   order: name                   # name | created | random_stable
-  post_type: video              # video (qualquer duracao) | reel (ate 90s)
+  # reel = tenta publicar como Reels (esteira de recomendacao, alcanca quem
+  # nao segue a pagina). Se o Facebook recusar o arquivo, o robo publica como
+  # video de feed sozinho, sem perder o horario.
+  post_type: reel               # reel | video | auto
 
 # ------------------------------------------------------------
 #  ETIQUETAS
@@ -32,7 +35,7 @@ grupos:
   - nome: "Ingles"
     source: "onedrive:PAGINAS FACEBOOK ( arquivo videos 00)/BAIXADOS DAS PAGINAS/REDE 1- IRÔNICA/R1 - Inglês"
     timezone: America/New_York
-    post_type: video
+    post_type: reel
     times:
       - "09:00"
       - "13:00"

@@ -24,6 +24,37 @@ def probe(path):
         return None
 
 
+def escolher_formato(path):
+    """Decide entre Reels e video de feed olhando o arquivo.
+
+    Reels tem esteira de recomendacao propria e alcanca quem nao segue a
+    pagina, mas so aceita ate 90s. Video de feed aceita qualquer duracao e
+    fica restrito a base de seguidores. Na duvida, video - um Reels recusado
+    perderia o horario.
+    """
+    info = probe(path)
+    if not info:
+        return "video", "sem ffprobe: enviando como video de feed"
+
+    video = next((s for s in info.get("streams", []) if s.get("codec_type") == "video"), None)
+    if not video:
+        return "video", "sem faixa de video"
+
+    duracao = float(info.get("format", {}).get("duration") or video.get("duration") or 0)
+    largura = int(video.get("width") or 0)
+    altura = int(video.get("height") or 0)
+    proporcao = largura / altura if altura else 0
+
+    if duracao > REEL_MAX_SEC:
+        return "video", f"{duracao:.0f}s (acima de {REEL_MAX_SEC}s): vai como video de feed"
+    if duracao < REEL_MIN_SEC:
+        return "video", f"{duracao:.0f}s (abaixo de {REEL_MIN_SEC}s): vai como video de feed"
+    if proporcao > 0.75:
+        return "video", f"{largura}x{altura} nao e vertical: vai como video de feed"
+
+    return "reel", f"{duracao:.0f}s vertical: vai como Reels"
+
+
 def check(path, post_type):
     """Retorna (erros, avisos). Erros pulam o video; avisos so aparecem no log."""
     errors, warnings = [], []
@@ -50,7 +81,9 @@ def check(path, post_type):
         if duration and duration < REEL_MIN_SEC:
             errors.append(f"curto demais para Reels ({duration:.1f}s, minimo {REEL_MIN_SEC}s)")
         if duration > REEL_MAX_SEC:
-            errors.append(f"longo demais para Reels ({duration:.1f}s, maximo {REEL_MAX_SEC}s)")
+            # nao e erro: o publish tenta Reels e cai para video de feed sozinho
+            warnings.append(f"{duration:.0f}s acima do limite de Reels - "
+                            "se o Facebook recusar, vai como video de feed")
         if width and height:
             ratio = width / height
             if ratio > 0.75:

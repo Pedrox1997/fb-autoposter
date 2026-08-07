@@ -53,8 +53,13 @@ def _next_playable(src, queue, page, cfg, st, problems):
             problems.append(f"{page.name}: download de '{item.name}' -> {e}")
             continue
 
+        tipo = page.post_type
+        if tipo == "auto":
+            tipo, motivo = media.escolher_formato(path)
+            print(f"     formato: {motivo}")
+
         if cfg.validate_media:
-            errors, warnings = media.check(path, page.post_type)
+            errors, warnings = media.check(path, tipo)
             for w in warnings:
                 print(f"     aviso: {w}")
             if errors:
@@ -64,9 +69,9 @@ def _next_playable(src, queue, page, cfg, st, problems):
                 _cleanup(path)
                 continue
 
-        return item, path
+        return item, path, tipo
 
-    return None, None
+    return None, None, None
 
 
 def _cleanup(path):
@@ -125,7 +130,7 @@ def process_page(cfg, st, page, now, videos=None, src=None, grupo_slugs=None,
 
     for slot in slots:
         print(f"\n  -> {_fmt(slot)}")
-        item, path = _next_playable(src, queue, page, cfg, st, problems)
+        item, path, tipo = _next_playable(src, queue, page, cfg, st, problems)
         if not item:
             problems.append(f"{page.name}: acabaram os videos utilizaveis em {_fmt(slot)}")
             break
@@ -142,8 +147,8 @@ def process_page(cfg, st, page, now, videos=None, src=None, grupo_slugs=None,
             continue
 
         try:
-            post_id = facebook.publish(page, path, caption, when_ts)
-            print(f"     OK {'agendado' if when_ts else 'publicado'} | id={post_id}")
+            post_id = facebook.publish(page, path, caption, when_ts, post_type=tipo)
+            print(f"     OK {'agendado' if when_ts else 'publicado'} como {tipo} | id={post_id}")
             state.record(st, page.slug, slot.isoformat(), item.id, item.name,
                          post_id, slot.isoformat())
             state.prune_slots(st, page.slug)
