@@ -20,6 +20,9 @@ TZ = ZoneInfo("America/Sao_Paulo")
 AGORA = datetime(2026, 7, 31, 3, 0, tzinfo=TZ)
 falhas = []
 
+# guardado antes que os cenarios troquem facebook.publish pelo dublê
+PUBLISH_ORIGINAL = facebook.publish
+
 
 def check(nome, cond, detalhe=""):
     print(f"  {'ok  ' if cond else 'FALHA'} {nome} {detalhe if not cond else ''}")
@@ -55,12 +58,14 @@ class FakeFacebook:
     def __init__(self, falhar=()):
         self.falhar = set(falhar)
         self.publicados = []
+        self.tipos = []
 
-    def __call__(self, page, path, caption, when_ts=None):
+    def __call__(self, page, path, caption, when_ts=None, post_type=None):
         nome = os.path.basename(path)
         if nome in self.falhar:
             raise RuntimeError("Graph API fora do ar")
         self.publicados.append((nome, when_ts))
+        self.tipos.append(post_type or page.post_type)
         return f"post-{len(self.publicados)}"
 
 
@@ -163,6 +168,44 @@ check("nao publicou nada", posts7c == 0)
 check("parou depois de 3 falhas", len([p for p in probs7c if "->" in p]) == 3,
       str(len(probs7c)))
 check("acionou o disjuntor", any("abortando" in p for p in probs7c), str(probs7c))
+
+print("\n[caso 11] Reels recusado cai para video de feed")
+from src import facebook as _fb_real  # noqa: E402
+
+chamadas = []
+
+def _reel_recusado(page, path, caption, when_ts=None):
+    chamadas.append("reel")
+    raise _fb_real.FacebookError("[400] code=100 video too long", code=100, retryable=False)
+
+def _video_ok(page, path, caption, when_ts=None):
+    chamadas.append("video")
+    return "post-video"
+
+_reel_original, _video_original = _fb_real.publish_reel, _fb_real.publish_video
+_fb_real.publish_reel, _fb_real.publish_video = _reel_recusado, _video_ok
+
+pagina_reel = config.Page(name="R", page_id="1", token="t", source_type="fake",
+                          source_ref="x", tz=TZ, post_type="reel", times=[dtime(9, 0)],
+                          default_caption="", hashtags="", order="name")
+resultado = PUBLISH_ORIGINAL(pagina_reel, "x.mp4", "legenda")
+check("tenta Reels primeiro", chamadas[0] == "reel", str(chamadas))
+check("cai para video quando o Reels e recusado", resultado == "post-video", str(chamadas))
+check("nao tenta video duas vezes", chamadas.count("video") == 1, str(chamadas))
+
+# erro temporario NAO deve virar fallback: precisa subir para o retry
+chamadas.clear()
+def _reel_instavel(page, path, caption, when_ts=None):
+    chamadas.append("reel")
+    raise _fb_real.FacebookError("[500] instavel", retryable=True)
+_fb_real.publish_reel = _reel_instavel
+try:
+    PUBLISH_ORIGINAL(pagina_reel, "x.mp4", "legenda")
+    check("erro temporario nao vira video de feed", False, "publicou como video")
+except _fb_real.FacebookError:
+    check("erro temporario nao vira video de feed", "video" not in chamadas)
+
+_fb_real.publish_reel, _fb_real.publish_video = _reel_original, _video_original
 
 print("\n[caso 9] etiqueta: 3 paginas dividindo a mesma pasta")
 from src.sources.base import Item as _Item  # noqa: E402
