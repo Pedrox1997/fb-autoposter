@@ -26,6 +26,10 @@ on:
         description: "Teste: trecho do nome do video (opcional)"
         type: string
         default: ""
+      limpar_agendados:
+        description: "Apagar os posts agendados e devolver os videos a fila"
+        type: boolean
+        default: false
 
 # Nunca dois runs ao mesmo tempo: evita post duplicado e conflito no state.
 concurrency:
@@ -71,8 +75,11 @@ jobs:
           TESTE_ESCOLHA: ${{ inputs.teste_escolha }}
           TESTE_NOME: ${{ inputs.teste_nome }}
           TESTE_UM_VIDEO: ${{ inputs.teste_um_video }}
+          LIMPAR_AGENDADOS: ${{ inputs.limpar_agendados }}
         run: |
-          if [ "$TESTE_UM_VIDEO" = "true" ]; then
+          if [ "$LIMPAR_AGENDADOS" = "true" ]; then
+            python -m tools.limpar_agendados --apagar
+          elif [ "$TESTE_UM_VIDEO" = "true" ]; then
             python -m tools.testar_post
           else
             python -m src.main
