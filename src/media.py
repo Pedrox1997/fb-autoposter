@@ -6,7 +6,10 @@ import shutil
 import subprocess
 
 REEL_MIN_SEC = 3
-REEL_MAX_SEC = 90
+# O limite de duracao de Reels ja foi 90s, mas a API aceitou um arquivo de
+# 581s em 07/08/2026. Como o teto real muda sem aviso, nao tratamos duracao
+# como erro: o publish tenta Reels e cai para video de feed se for recusado.
+REEL_MAX_SEC = 0                    # 0 = sem teto conhecido
 MAX_BYTES = 4 * 1024 * 1024 * 1024  # limite pratico da Graph API
 
 
@@ -45,7 +48,7 @@ def escolher_formato(path):
     altura = int(video.get("height") or 0)
     proporcao = largura / altura if altura else 0
 
-    if duracao > REEL_MAX_SEC:
+    if REEL_MAX_SEC and duracao > REEL_MAX_SEC:
         return "video", f"{duracao:.0f}s (acima de {REEL_MAX_SEC}s): vai como video de feed"
     if duracao < REEL_MIN_SEC:
         return "video", f"{duracao:.0f}s (abaixo de {REEL_MIN_SEC}s): vai como video de feed"
@@ -80,7 +83,7 @@ def check(path, post_type):
     if post_type == "reel":
         if duration and duration < REEL_MIN_SEC:
             errors.append(f"curto demais para Reels ({duration:.1f}s, minimo {REEL_MIN_SEC}s)")
-        if duration > REEL_MAX_SEC:
+        if REEL_MAX_SEC and duration > REEL_MAX_SEC:
             # nao e erro: o publish tenta Reels e cai para video de feed sozinho
             warnings.append(f"{duration:.0f}s acima do limite de Reels - "
                             "se o Facebook recusar, vai como video de feed")
