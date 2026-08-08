@@ -2,11 +2,11 @@ name: Postador Facebook
 
 on:
   schedule:
-    # 06:00 UTC = 03:00 em Brasilia. O robo sobe os videos do dia de madrugada
-    # e o proprio Facebook publica nos horarios exatos do config.yaml.
-    - cron: "0 6 * * *"
-    # Rede de seguranca: se o run da madrugada falhar, este pega o que ficou.
-    - cron: "0 12 * * *"
+    # De 20 em 20 minutos: o robo acorda, ve quais horarios venceram e publica
+    # na hora. Agendar pela API faria o Reels perder a esteira de recomendacao,
+    # entao a precisao do horario vem da frequencia do cron - o post sai poucos
+    # minutos depois do horario, e nao no segundo exato.
+    - cron: "*/20 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:

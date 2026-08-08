@@ -11,9 +11,13 @@ timezone: America/Sao_Paulo
 # FB_USER_TOKEN_2, FB_USER_TOKEN_3... que existir - um perfil por token.
 # facebook_user_token_env: [FB_USER_TOKEN, FB_USER_TOKEN_2]
 
-mode: schedule                  # schedule = o Facebook publica na hora exata
-schedule_horizon_hours: 30      # quanto tempo para frente o robo agenda
-now_tolerance_minutes: 45       # tolerancia do mode: now, se o cron atrasar
+# now = publica na hora em que o robo acorda.
+# Nao use 'schedule': Reels agendado pela API nao entra na esteira de Reels -
+# o post fica publico mas nao aparece na aba nem recebe recomendacao. Medido
+# em 08/08/2026: os publicados na hora aparecem, os agendados nao.
+mode: now
+schedule_horizon_hours: 30      # so vale para mode: schedule
+now_tolerance_minutes: 45       # janela para publicar um horario ja vencido
 recycle_when_empty: false       # true = recomeca a pasta quando acabar
 validate_media: true            # pula video fora do padrao do formato
 
