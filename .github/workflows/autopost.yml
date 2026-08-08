@@ -30,6 +30,10 @@ on:
         description: "Apagar os posts agendados e devolver os videos a fila"
         type: boolean
         default: false
+      diagnosticar:
+        description: "So diagnosticar: comparar privacidade dos posts"
+        type: boolean
+        default: false
 
 # Nunca dois runs ao mesmo tempo: evita post duplicado e conflito no state.
 concurrency:
@@ -76,8 +80,11 @@ jobs:
           TESTE_NOME: ${{ inputs.teste_nome }}
           TESTE_UM_VIDEO: ${{ inputs.teste_um_video }}
           LIMPAR_AGENDADOS: ${{ inputs.limpar_agendados }}
+          DIAGNOSTICAR: ${{ inputs.diagnosticar }}
         run: |
-          if [ "$LIMPAR_AGENDADOS" = "true" ]; then
+          if [ "$DIAGNOSTICAR" = "true" ]; then
+            python -m tools.diagnosticar
+          elif [ "$LIMPAR_AGENDADOS" = "true" ]; then
             python -m tools.limpar_agendados --apagar
           elif [ "$TESTE_UM_VIDEO" = "true" ]; then
             python -m tools.testar_post
