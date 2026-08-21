@@ -11,6 +11,25 @@ DRY_RUN = os.environ.get("DRY_RUN", "").strip().lower() in ("1", "true", "yes")
 MIN_LEAD_MINUTES = 20  # o Facebook exige pelo menos 10 min de antecedencia
 
 
+ARQUIVO_AVISOS = os.path.join(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))), "avisos.txt")
+
+
+def avisar(mensagem):
+    """Recado que merece e-mail: estoque acabando ou pasta reciclada.
+
+    Fica num arquivo porque quem manda o e-mail e o workflow - ele abre uma
+    issue no repositorio, e o GitHub avisa. Assim o aviso chega uma vez, em vez
+    de um e-mail a cada execucao do cron.
+    """
+    print(f"  >> AVISO: {mensagem}")
+    try:
+        with open(ARQUIVO_AVISOS, "a", encoding="utf-8") as f:
+            f.write(mensagem + chr(10))
+    except OSError:
+        pass
+
+
 def _fmt(dt):
     return dt.strftime("%d/%m %H:%M")
 
@@ -100,11 +119,14 @@ def process_page(cfg, st, page, now, videos=None, src=None, grupo_slugs=None,
     if not queue:
         if cfg.recycle:
             print("  fila esgotada -> reciclando a pasta do inicio")
+            avisar(f"{page.name}: deu a volta na pasta - os {len(videos)} videos vao "
+                   "repetir a partir do primeiro. Hora de repor o estoque.")
             state.reset_used(st, page.slug)
             queue = montar_fila(videos, page, st, grupo_slugs, reservados)
         else:
             msg = f"{page.name}: sem videos novos ({len(videos)} na pasta, todos ja usados)"
             print(f"  ! {msg}")
+            avisar(msg + ". O robo parou nesta pagina ate voce repor a pasta.")
             return 0, [msg]
 
     if cfg.mode == "schedule":
@@ -232,10 +254,27 @@ def run():
             print(f"  * {p}")
 
     _write_summary(total, problems)
-    # Um video ruim nao derruba o run inteiro; uma pane real (nada saiu e houve
-    # erro) falha o workflow e o GitHub te manda o e-mail de alerta.
-    if problems and total == 0:
+
+    # Ficar sem video na pasta ou fora de horario nao e pane: e estado normal.
+    # Tratar isso como falha enchia a caixa de e-mail a cada execucao do cron.
+    # So falha o workflow quando algo realmente quebrou e nada foi publicado.
+    reais = [p for p in problems if not _so_avisa(p)]
+    if reais and total == 0:
         sys.exit(1)
+
+
+FRASES_INFORMATIVAS = (
+    "sem videos novos",
+    "pasta vazia",
+    "acabaram os videos",
+    "todos ja foram postados",
+)
+
+
+def _so_avisa(problema):
+    """Distingue aviso de pane: sem estoque e recado, nao erro de execucao."""
+    baixo = problema.lower()
+    return any(frase in baixo for frase in FRASES_INFORMATIVAS)
 
 
 def _warn_token(page):

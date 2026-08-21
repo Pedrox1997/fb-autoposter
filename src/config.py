@@ -26,6 +26,7 @@ class Page:
     hashtags: str = ""
     order: str = "name"
     grupo: str = ""              # etiqueta: paginas do mesmo grupo dividem a pasta
+    source_refs: list = field(default_factory=list)   # fila de pastas, em ordem
 
     @property
     def slug(self):
@@ -171,12 +172,25 @@ def load(path=None):
             token = tokens_das_paginas[page_id]["token"]
 
         # source: string direta no YAML ou secret
+        # 'source' aceita uma pasta, ou uma lista delas: quando a primeira
+        # esgota, o robo passa para a seguinte sem intervencao.
         src = p.get("source", {}) or {}
         if isinstance(src, str):
-            ref, tipo = src.strip(), "auto"
+            refs, tipo = [src.strip()], "auto"
+        elif isinstance(src, list):
+            refs, tipo = [str(x).strip() for x in src if str(x).strip()], "auto"
         else:
             tipo = src.get("type", "auto")
-            ref = _env(src["env"], name) if src.get("env") else (src.get("path") or "").strip()
+            if src.get("env"):
+                refs = [_env(src["env"], name)]
+            else:
+                caminho = src.get("path") or []
+                if isinstance(caminho, str):
+                    refs = [caminho.strip()]
+                else:
+                    refs = [str(x).strip() for x in caminho if str(x).strip()]
+        refs = [r for r in refs if r]
+        ref = refs[0] if refs else ""
 
         if not (page_id and token and ref):
             faltando = [r for r, v in
@@ -202,6 +216,7 @@ def load(path=None):
                 token=token,
                 source_type=_detect_source(tipo, ref),
                 source_ref=ref,
+                source_refs=refs,
                 tz=page_tz,
                 post_type=p.get("post_type", "reel").lower(),
                 times=times,

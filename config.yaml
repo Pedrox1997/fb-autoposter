@@ -18,7 +18,9 @@ timezone: America/Sao_Paulo
 mode: now
 schedule_horizon_hours: 30      # so vale para mode: schedule
 now_tolerance_minutes: 45       # janela para publicar um horario ja vencido
-recycle_when_empty: false       # true = recomeca a pasta quando acabar
+# true = quando a pasta acaba, recomeca do primeiro video (e abre uma issue
+# avisando, para voce repor). false = para a pagina e avisa.
+recycle_when_empty: true
 validate_media: true            # pula video fora do padrao do formato
 
 defaults:
@@ -37,13 +39,14 @@ defaults:
 # ------------------------------------------------------------
 grupos:
   - nome: "Ingles"
-    source: "onedrive:PAGINAS FACEBOOK ( arquivo videos 00)/BAIXADOS DAS PAGINAS/REDE 1- IRÔNICA/R1 - Inglês"
+    # source aceita uma lista: quando a primeira pasta esgota, o robo passa
+    # para a seguinte sozinho. Acrescente pastas aqui para nao repetir video.
+    source:
+      - "onedrive:PAGINAS FACEBOOK ( arquivo videos 00)/BAIXADOS DAS PAGINAS/REDE 1- IRÔNICA/R1 - Inglês"
     timezone: America/New_York
     post_type: reel
     times:
-      - "09:00"
-      - "13:00"
-      - "19:30"
+      - "09:00"     # 1 post por dia: estica o estoque e evita repetir rapido
     paginas:
       - name: "Daily Blessings"
         page_id: "102725309222801"

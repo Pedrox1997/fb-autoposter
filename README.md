@@ -212,6 +212,107 @@ $env:GOOGLE_SERVICE_ACCOUNT_FILE="C:\caminho\service-account.json"
 
 ---
 
+## Diagnóstico de público
+
+Antes de limpar qualquer coisa, veja se vale a pena:
+
+```powershell
+.\.venv\Scripts\python.exe -m tools.publico
+```
+
+Mostra **seguidores por país** e **alcance por país (28 dias)**. A Graph API não
+lista seguidores um a um, mas entrega o agregado — e é ele que decide:
+
+- alcance concentrado no mesmo país da base suja → os bots recebem entrega e
+  envenenam o sinal; aí limpar tem efeito
+- alcance no país certo, base suja inerte → limpar não muda nada, é 33 dias de
+  clique comprando zero
+
+Também vale a **restrição de país** (Configurações da Página → Restrições de
+país): não apaga os seguidores existentes, mas torna a Página invisível no país
+do farm — os bots atuais param de contar como audiência e novos não conseguem
+mais seguir. Instantâneo, oficial, sem risco.
+
+---
+
+## Bloquear seguidores-robô (lista do Painel profissional)
+
+A Graph API não expõe a lista de seguidores — só o navegador tem. `tools/bloquear_seguidores.js`
+é um script de console que roda **na aba já aberta** da lista de seguidores.
+
+1. Abra a Página → Painel profissional → Seguidores
+2. `F12` → aba Console → cole o conteúdo de `tools/bloquear_seguidores.js` → Enter
+3. Modo `"listar"` (padrão) rola a lista toda e baixa `seguidores.csv`. Não clica em nada.
+4. Confira o CSV, cole os nomes ruins em `ALVOS`, troque `MODO` para `"bloquear"`, rode de novo.
+5. Para abortar no meio: digite `PARAR = true` no console.
+
+`LOTE` é o orçamento de bloqueios por execução (padrão 300 ≈ 19 min) e há pausa
+aleatória de 1,2–2,6 s entre ações. O modo `"bloquear"` trabalha em **janela
+rolante**: nunca pré-carrega a lista (com 10 mil seguidores isso trava o
+navegador), pega só o que está visível no topo, bloqueia e deixa a lista subir.
+
+O script vigia a tela e **para sozinho** se o Facebook exibir "você está indo
+rápido demais" / "temporariamente bloqueado". Se isso acontecer, espere 24 h e
+volte com metade do `LOTE`. Insistir depois do aviso é o que vira restrição de conta.
+
+O acumulado fica em `localStorage` (`antibot_placar`), então dá para retomar
+todo dia e acompanhar o progresso.
+
+**Antes de encarar milhares:** remover 10 mil seguidores em ritmo seguro leva
+~33 dias e deixa a página com zero seguidores — o mesmo ponto de partida de uma
+página nova, que custa 5 minutos. Só compensa se a página tiver algo não-portável.
+
+---
+
+## Se os seguidores forem Páginas: bloqueio pela API
+
+ID de Página é **público**, e o edge `/blocked` aceita *"User or Page IDs"*. Então,
+quando os seguidores-robô são Páginas, o navegador só precisa **ler** os ids e o
+bloqueio acontece pela API oficial — 50 por chamada, sem clique nenhum.
+
+```powershell
+# 1. no console, MODO = "listar" -> baixa seguidores.csv (só leitura)
+# 2. classifica: quem é Página resolve pela Graph, perfil pessoal não
+.\.venv\Scripts\python.exe -m tools.bloquear_ids seguidores.csv
+# 3. bloqueia as Páginas
+.\.venv\Scripts\python.exe -m tools.bloquear_ids seguidores.csv --aplicar
+# desfazer
+.\.venv\Scripts\python.exe -m tools.bloquear_ids --desfazer --pagina "Nome"
+```
+
+Os que **não** resolvem são perfis pessoais (id escopado, a Graph não devolve) e
+saem em `state/perfis_pessoais.csv` — esses só pelo caminho do clique.
+
+---
+
+## Limpeza de bots nos comentários
+
+`tools.antibot` varre os comentários dos posts recentes, pontua cada autor por
+sinais de robô e bloqueia em massa via `POST /{page-id}/blocked`.
+
+```powershell
+.\.venv\Scripts\python.exe -m tools.antibot                    # relatório, não altera nada
+.\.venv\Scripts\python.exe -m tools.antibot --posts 60          # varredura mais funda
+.\.venv\Scripts\python.exe -m tools.antibot --limiar 4          # mais rigoroso
+.\.venv\Scripts\python.exe -m tools.antibot --aplicar           # bloqueia de verdade
+.\.venv\Scripts\python.exe -m tools.antibot --aplicar --apagar  # bloqueia e apaga os comentários
+.\.venv\Scripts\python.exe -m tools.antibot --listar            # quem já está bloqueado
+.\.venv\Scripts\python.exe -m tools.antibot --desfazer          # desfaz o que a ferramenta bloqueou
+```
+
+Sinais e pontos: link externo (4), telefone (3), termo de golpe — recuperação de
+conta, cripto, WhatsApp/Telegram, adulto — (3 por categoria), mesmo texto em
+3+ posts (4 / 6+ posts (6) / 10+ posts (8)), 5 comentários em 60 s (3),
+12+ comentários na varredura (2), nome com 4+ dígitos (1). Limiar padrão: 5.
+
+- Sem `--aplicar` nada muda: sai relatório na tela e `state/antibot_relatorio.csv`.
+- Quem já foi bloqueado fica em `state/bloqueados.json` e não é reprocessado.
+- `state/nunca_bloquear.json` é uma lista de PSIDs que a ferramenta nunca toca.
+- Exige o token com `pages_manage_metadata` (erro 283 = reconectar o perfil no painel).
+- A Graph API **não** expõe a lista de seguidores — só dá para agir sobre quem comenta.
+
+---
+
 ## Proteções contra falha
 
 | Situação | O que acontece |

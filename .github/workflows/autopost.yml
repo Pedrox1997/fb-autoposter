@@ -42,6 +42,7 @@ concurrency:
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   post:
@@ -96,6 +97,33 @@ jobs:
       # trava, derrubando as tentativas seguintes. Aqui a cada tentativa
       # pegamos a versao mais nova do repositorio e fundimos o nosso registro
       # nela - a uniao nunca perde um post ja publicado.
+      # O robo grava avisos de estoque em avisos.txt. Viram uma issue e o
+      # GitHub manda o e-mail. Falta de video nao falha o workflow: isso
+      # encheria a caixa de entrada a cada 20 minutos.
+      - name: Avisar se o estoque acabou
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITULO: Estoque de videos precisa de atencao
+        run: |
+          [ -s avisos.txt ] || exit 0
+
+          ABERTAS=$(gh issue list --state open --search "$TITULO in:title" --json number --jq 'length')
+          if [ "$ABERTAS" != "0" ]; then
+            echo "ja existe issue aberta sobre estoque - nao duplico"
+            exit 0
+          fi
+
+          {
+            echo "O robo encontrou isto em $(date -u '+%d/%m %H:%M') UTC:"
+            echo
+            sed 's/^/- /' avisos.txt
+            echo
+            echo 'Reponha a pasta, ou acrescente outra na lista source da etiqueta.'
+            echo 'Feche esta issue depois de resolver: so entao um novo aviso e criado.'
+          } > corpo-issue.md
+
+          gh issue create --title "$TITULO" --body-file corpo-issue.md
       - name: Salvar o que foi postado
         if: always()
         env:

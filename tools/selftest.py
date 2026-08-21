@@ -243,6 +243,62 @@ check("source string vira rclone", a.source_type == "rclone")
 check("source guarda o remote", a.source_ref == "onedrive:Videos/A")
 check("slug util para o estado", a.slug == "pagina-a")
 
+print("\n[fila de varias pastas]")
+from src.sources.composta import FonteComposta  # noqa: E402
+
+
+class _PastaFalsa:
+    def __init__(self, nomes, quebra=False):
+        self.nomes, self.quebra, self.baixados = nomes, quebra, []
+
+    def list_videos(self):
+        if self.quebra:
+            raise RuntimeError("pasta fora do ar")
+        return [base.Item(id=n, name=n) for n in self.nomes]
+
+    def captions(self):
+        return {}
+
+    def download(self, item):
+        self.baixados.append(item.name)
+        return "/tmp/" + item.name
+
+
+pasta_a = _PastaFalsa(["a1.mp4", "a2.mp4"])
+pasta_b = _PastaFalsa(["b1.mp4"])
+juntas = FonteComposta([pasta_a, pasta_b])
+nomes_fila = [v.name for v in juntas.list_videos()]
+check("junta as pastas numa fila so", nomes_fila == ["a1.mp4", "a2.mp4", "b1.mp4"], str(nomes_fila))
+check("consome a primeira pasta antes da segunda",
+      nomes_fila.index("a2.mp4") < nomes_fila.index("b1.mp4"))
+
+juntas.download(base.Item(id="b1.mp4", name="b1.mp4"))
+check("baixa da pasta de origem certa",
+      pasta_b.baixados == ["b1.mp4"] and not pasta_a.baixados,
+      f"a={pasta_a.baixados} b={pasta_b.baixados}")
+
+com_defeito = FonteComposta([_PastaFalsa([], quebra=True), _PastaFalsa(["c1.mp4"])])
+check("pasta indisponivel nao derruba as outras",
+      [v.name for v in com_defeito.list_videos()] == ["c1.mp4"])
+
+print("\n[avisos de estoque]")
+from src import main as _main  # noqa: E402
+
+_main.ARQUIVO_AVISOS = os.path.join(tmp, "avisos.txt")
+_main.avisar("Pagina X: deu a volta na pasta")
+_main.avisar("Pagina Y: sem videos novos")
+with open(_main.ARQUIVO_AVISOS, encoding="utf-8") as f:
+    conteudo = f.read()
+check("avisos gravados para virar e-mail", conteudo.count(chr(10)) == 2, repr(conteudo))
+check("mensagem preservada", "deu a volta" in conteudo)
+check("estoque acabando nao e pane",
+      _main._so_avisa("Daily Blessings: sem videos novos (60 na pasta, todos ja usados)"))
+check("erro de API continua sendo pane",
+      not _main._so_avisa("Daily Blessings: 'x.mp4' em 09/08 -> [500] Graph API"))
+check("download quebrado continua sendo pane",
+      not _main._so_avisa("Pagina: download de 'x.mp4' -> conexao caiu"))
+
+
 print("\n[secrets]")
 os.environ["ALL_SECRETS"] = '{"PAGE1_ID": "123", "PAGE1_TOKEN": "abc"}'
 config._bootstrap_secrets()
