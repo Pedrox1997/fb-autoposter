@@ -39,13 +39,25 @@ def fundir(base, novo):
         a = base.get("pages", {}).get(slug, {})
         b = novo.get("pages", {}).get(slug, {})
 
-        usados = list(a.get("used_files", []))
-        for file_id in b.get("used_files", []):
-            if file_id not in usados:
-                usados.append(file_id)
+        ciclo_a = int(a.get("ciclo", 0) or 0)
+        ciclo_b = int(b.get("ciclo", 0) or 0)
+
+        if ciclo_a != ciclo_b:
+            # Reciclagem e remocao intencional: quem recomecou a pasta tem a
+            # lista certa. Unir aqui devolveria os videos que acabaram de sair
+            # da fila, e o robo republicaria sempre o primeiro.
+            recente = a if ciclo_a > ciclo_b else b
+            usados = list(recente.get("used_files", []))
+        else:
+            usados = list(a.get("used_files", []))
+            for file_id in b.get("used_files", []):
+                if file_id not in usados:
+                    usados.append(file_id)
 
         resultado["pages"][slug] = {
             "used_files": usados,
+            "ciclo": max(ciclo_a, ciclo_b),
+            # o historico de posts nunca se perde, mesmo trocando de ciclo
             "rejected": {**a.get("rejected", {}), **b.get("rejected", {})},
             "slots": {**a.get("slots", {}), **b.get("slots", {})},
         }

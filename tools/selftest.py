@@ -195,6 +195,36 @@ check("a ordem dos lados nao muda o resultado",
       sorted(fundir(run_a, run_b)["pages"]["x"]["used_files"])
       == sorted(fundir(run_b, run_a)["pages"]["x"]["used_files"]))
 
+print("\n[reciclagem sobrevive a fusao]")
+st_ciclo = {"pages": {}}
+for vid in ("v1", "v2", "v3"):
+    state.record(st_ciclo, "pag", f"s-{vid}", vid, f"{vid}.mp4", "post", "quando")
+check("ciclo comeca em zero", state.ciclo(st_ciclo, "pag") == 0)
+
+state.reset_used(st_ciclo, "pag")
+check("reciclagem esvazia os usados", state.used_file_ids(st_ciclo, "pag") == set())
+check("reciclagem avanca o ciclo", state.ciclo(st_ciclo, "pag") == 1)
+check("historico de posts nao se perde", len(st_ciclo["pages"]["pag"]["slots"]) == 3)
+
+# o repositorio ainda esta no ciclo antigo, com os 3 videos marcados
+do_repo = {"pages": {"pag": {"used_files": ["v1", "v2", "v3"], "ciclo": 0,
+                             "rejected": {}, "slots": {}}}}
+state.record(st_ciclo, "pag", "s-novo", "v1", "v1.mp4", "post2", "quando")
+fundido = fundir(do_repo, st_ciclo)
+usados_apos = fundido["pages"]["pag"]["used_files"]
+check("fusao respeita quem reciclou", usados_apos == ["v1"], str(usados_apos))
+check("ciclo maior vence", fundido["pages"]["pag"]["ciclo"] == 1)
+check("nada de historico se perde na troca de ciclo",
+      len(fundido["pages"]["pag"]["slots"]) == 4,
+      str(len(fundido["pages"]["pag"]["slots"])))
+
+# mesmo ciclo continua unindo (dois runs simultaneos)
+lado_a = {"pages": {"p": {"used_files": ["x"], "ciclo": 2, "rejected": {}, "slots": {}}}}
+lado_b = {"pages": {"p": {"used_files": ["y"], "ciclo": 2, "rejected": {}, "slots": {}}}}
+check("mesmo ciclo ainda une os dois lados",
+      set(fundir(lado_a, lado_b)["pages"]["p"]["used_files"]) == {"x", "y"})
+
+
 print("\n[config com varias paginas]")
 YAML = """
 timezone: America/Sao_Paulo

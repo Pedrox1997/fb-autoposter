@@ -34,6 +34,7 @@ def _page(data, slug):
     p.setdefault("used_files", [])
     p.setdefault("rejected", {})
     p.setdefault("slots", {})
+    p.setdefault("ciclo", 0)
     return p
 
 
@@ -45,8 +46,20 @@ def rejected_ids(data, slug):
     return set(_page(data, slug)["rejected"])
 
 
+def ciclo(data, slug):
+    return _page(data, slug)["ciclo"]
+
+
 def reset_used(data, slug):
-    _page(data, slug)["used_files"] = []
+    """Recomeca a pasta do primeiro video.
+
+    Alem de limpar, avanca o contador de ciclo. E ele que faz a reciclagem
+    sobreviver a fusao: sem isso a uniao devolveria os usados que acabamos de
+    apagar, e o robo republicaria o primeiro video todo dia.
+    """
+    pagina = _page(data, slug)
+    pagina["used_files"] = []
+    pagina["ciclo"] = pagina.get("ciclo", 0) + 1
 
 
 def slot_taken(data, slug, slot_key):
