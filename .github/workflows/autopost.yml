@@ -2,11 +2,22 @@ name: Postador Facebook
 
 on:
   schedule:
-    # De 20 em 20 minutos: o robo acorda, ve quais horarios venceram e publica
-    # na hora. Agendar pela API faria o Reels perder a esteira de recomendacao,
-    # entao a precisao do horario vem da frequencia do cron - o post sai poucos
-    # minutos depois do horario, e nao no segundo exato.
-    - cron: "*/20 * * * *"
+    # Cron ESPARSO e concentrado na janela de publicacao, em vez de */20.
+    # Motivo: com */20 (72 execucoes/dia) o GitHub estrangulou a fila deste
+    # repo - caiu de ~35 runs/dia (22-26/08) para 2-6/dia (27-31/08), com
+    # buracos de 5 a 11 horas, e nenhum run caiu na janela de postagem depois
+    # de 26/08. O robo ficou 6 dias sem postar sem nenhum erro no log.
+    #
+    # Os horarios abaixo sao UTC e cercam o unico slot do dia (09:00 New York
+    # = 13:00 UTC no horario de verao, 14:00 UTC no de inverno). Junto com
+    # now_tolerance_minutes: 300, qualquer um deles que rode publica o post do
+    # dia; state.slot_taken garante que so o primeiro publica.
+    - cron: "5,35 13 * * *"
+    - cron: "5,35 14 * * *"
+    - cron: "5,35 15 * * *"
+    - cron: "5,35 16 * * *"
+    - cron: "5,35 17 * * *"
+    - cron: "5,35 18 * * *"
   workflow_dispatch:
     inputs:
       dry_run:

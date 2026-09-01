@@ -17,7 +17,12 @@ timezone: America/Sao_Paulo
 # em 08/08/2026: os publicados na hora aparecem, os agendados nao.
 mode: now
 schedule_horizon_hours: 30      # so vale para mode: schedule
-now_tolerance_minutes: 45       # janela para publicar um horario ja vencido
+# Janela para publicar um horario ja vencido. Precisa ser LARGA: o cron do
+# GitHub Actions atrasa e as vezes pula execucoes, entao a garantia de que o
+# post do dia sai nao vem da pontualidade do runner, vem desta folga.
+# Publicar uma vez por slot e garantido por state.slot_taken - varios runs
+# dentro da janela nao geram post duplicado.
+now_tolerance_minutes: 300      # 5h: 09:00 NY publica ate 14:00 NY
 # true = quando a pasta acaba, recomeca do primeiro video (e abre uma issue
 # avisando, para voce repor). false = para a pagina e avisa.
 recycle_when_empty: true
